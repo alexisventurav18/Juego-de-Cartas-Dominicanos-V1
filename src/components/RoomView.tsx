@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, RotateCcw } from 'lucide-react';
-import { canStartGame, createGameState, GAMES, type GameState, isGameFinished } from '@/games';
-import { applyCasinoMove, type CasinoMove } from '@/games/casino';
-import { applyCinquilloMove, type CinquilloMove } from '@/games/cinquillo';
-import { applyBurakoMove, type BurakoMove } from '@/games/burako';
-import { botStep } from '@/games/bots';
-import { isBotPlayer, type MoveResult } from '@/games/shared';
+import { canStartGame, GAMES, isGameFinished } from '@/games';
+import type { CasinoMove } from '@/games/casino';
+import type { CinquilloMove } from '@/games/cinquillo';
+import type { BurakoMove } from '@/games/burako';
+import { botTickDelay } from '@/games/bots';
+import { isBotPlayer } from '@/games/shared';
 import { getPlayerId } from '@/lib/identity';
-import { fetchRoom, type RoomRow, subscribeToRoom, updateRoom } from '@/lib/rooms';
+import { botTick, fetchRoom, requestStart, type RoomRow, sendMove, subscribeToRoom } from '@/lib/rooms';
 import WaitingRoom from './WaitingRoom';
 import CasinoTable from './CasinoTable';
 import CinquilloTable from './CinquilloTable';
@@ -19,7 +19,8 @@ interface RoomViewProps {
   onLeave: () => void;
 }
 
-const CONFLICT_MESSAGE = 'La mesa cambió mientras jugabas. Revisa la jugada y vuelve a intentarlo.';
+// Errores tras los cuales no tiene sentido seguir en la sala.
+const FATAL_MESSAGES = ['Esta sala ya no existe.', 'No estás en esta sala.'];
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : 'Algo salió mal. Inténtalo de nuevo.';
@@ -32,36 +33,43 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [coinOpen, setCoinOpen] = useState(false);
+  const versionRef = useRef(-1);
+
+  const acceptRow = useCallback((row: RoomRow) => {
+    setRoom((prev) => {
+      const next = !prev || row.version >= prev.version ? row : prev;
+      versionRef.current = next.version;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let active = true;
 
-    const acceptRow = (row: RoomRow) => {
-      if (!active) return;
-      setRoom((prev) => (!prev || row.version >= prev.version ? row : prev));
-    };
-
     const refresh = () => {
       fetchRoom(roomId)
         .then((row) => {
-          if (!active) return;
-          if (row) acceptRow(row);
-          else setLoadError('Esta sala ya no existe.');
+          if (active) acceptRow(row);
         })
         .catch((err: unknown) => {
-          if (active) setLoadError(errorMessage(err));
+          if (!active) return;
+          const message = errorMessage(err);
+          if (FATAL_MESSAGES.includes(message) || versionRef.current === -1) setLoadError(message);
+          else setNotice(message);
         });
     };
 
     refresh();
-    const unsubscribe = subscribeToRoom(roomId, acceptRow);
+    const unsubscribe = subscribeToRoom(roomId, (version) => {
+      if (version > versionRef.current) refresh();
+    });
     window.addEventListener('focus', refresh);
     return () => {
       active = false;
       unsubscribe();
       window.removeEventListener('focus', refresh);
     };
-  }, [roomId]);
+  }, [roomId, acceptRow]);
 
   useEffect(() => {
     if (!notice) return;
@@ -69,24 +77,17 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
     return () => clearTimeout(timer);
   }, [notice]);
 
+  // El primer humano de la sala pide al servidor las jugadas de los bots; el servidor es quien las calcula.
   useEffect(() => {
     if (!room?.state || !room.players.some(isBotPlayer)) return;
     if (room.players.find((p) => !isBotPlayer(p))?.id !== playerId) return;
-    const step = botStep(room.state);
-    if (!step) return;
+    const delay = botTickDelay(room.state);
+    if (delay === null) return;
     const timer = setTimeout(() => {
-      if ('error' in step.result) {
-        setNotice(step.result.error);
-        return;
-      }
-      updateRoom(room, { state: step.result.state, status: 'playing' })
-        .then((updated) => {
-          if (updated) setRoom(updated);
-        })
-        .catch((err: unknown) => setNotice(errorMessage(err)));
-    }, step.delayMs);
+      botTick(room.id, room.version).then(acceptRow).catch((err: unknown) => setNotice(errorMessage(err)));
+    }, delay);
     return () => clearTimeout(timer);
-  }, [room, playerId]);
+  }, [room, playerId, acceptRow]);
 
   if (loadError) {
     return <StatusMessage message={loadError} onLeave={onLeave} />;
@@ -100,23 +101,13 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
     return <StatusMessage message="No estás en esta sala." onLeave={onLeave} />;
   }
 
-  const submit = async (result: MoveResult<GameState>) => {
-    if ('error' in result) {
-      setNotice(result.error);
-      return;
-    }
+  const run = async (action: () => Promise<RoomRow>) => {
     setSaving(true);
     try {
-      const updated = await updateRoom(room, { state: result.state, status: 'playing' });
-      if (updated) {
-        setRoom(updated);
-      } else {
-        setNotice(CONFLICT_MESSAGE);
-        const fresh = await fetchRoom(roomId);
-        if (fresh) setRoom((prev) => (!prev || fresh.version >= prev.version ? fresh : prev));
-      }
+      acceptRow(await action());
     } catch (err) {
       setNotice(errorMessage(err));
+      fetchRoom(roomId).then(acceptRow).catch(() => undefined);
     } finally {
       setSaving(false);
     }
@@ -131,13 +122,13 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
       setCoinOpen(true);
       return;
     }
-    void submit({ state: createGameState(room.game, room.players) });
+    void run(() => requestStart(room.id));
   };
 
   const startSoloGame = (humanWonToss: boolean) => {
     setCoinOpen(false);
     const dealer = humanWonToss ? room.players.findIndex(isBotPlayer) : seat;
-    void submit({ state: createGameState(room.game, room.players, dealer) });
+    void run(() => requestStart(room.id, dealer));
   };
 
   const state = room.state;
@@ -173,13 +164,13 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
       ) : (
         <div className={`transition ${saving ? 'pointer-events-none opacity-80' : ''}`}>
           {state.game === 'casino' && (
-            <CasinoTable state={state} seat={seat} onMove={(move: CasinoMove) => void submit(applyCasinoMove(state, seat, move))} />
+            <CasinoTable state={state} seat={seat} onMove={(move: CasinoMove) => void run(() => sendMove(room.id, move))} />
           )}
           {state.game === 'cinquillo' && (
-            <CinquilloTable state={state} seat={seat} onMove={(move: CinquilloMove) => void submit(applyCinquilloMove(state, seat, move))} />
+            <CinquilloTable state={state} seat={seat} onMove={(move: CinquilloMove) => void run(() => sendMove(room.id, move))} />
           )}
           {state.game === 'burako' && (
-            <BurakoTable state={state} seat={seat} onMove={(move: BurakoMove) => void submit(applyBurakoMove(state, seat, move))} />
+            <BurakoTable state={state} seat={seat} onMove={(move: BurakoMove) => void run(() => sendMove(room.id, move))} />
           )}
           {isGameFinished(state) && (
             <div className="mt-8 flex justify-center">
