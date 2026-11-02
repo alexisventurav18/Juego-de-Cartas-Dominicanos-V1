@@ -1,10 +1,11 @@
-import { createSoloPlayers, GAMES, type GameState } from '@/games';
-import { randomInt } from '@/games/cards';
+import type { GameState } from '@/games';
 import type { GameId, Player } from '@/games/shared';
+import { getPlayerId, getPlayerKey } from './identity';
 import { supabase } from './supabase';
 
 export type RoomStatus = 'waiting' | 'playing';
 
+/** Sala tal como la ve este jugador: `state` trae su mano y, de los demás, solo cuántas cartas tienen. */
 export interface RoomRow {
   id: string;
   code: string;
@@ -15,109 +16,68 @@ export interface RoomRow {
   version: number;
 }
 
-const ROOM_COLUMNS = 'id, code, game, status, players, state, version';
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const FUNCTION_NAME = 'rooms';
+const SERVER_UNREACHABLE =
+  'No se pudo contactar con el servidor de partidas. Revisa tu conexión e inténtalo de nuevo.';
 
-const CODE_LENGTH = 5;
-const UNIQUE_VIOLATION = '23505';
-const MAX_CODE_ATTEMPTS = 6;
-
-function makeCode(): string {
-  let code = '';
-  for (let i = 0; i < CODE_LENGTH; i++) {
-    code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
-  }
-  return code;
+interface ServerResponse {
+  ok: boolean;
+  room?: RoomRow;
+  error?: string;
 }
 
-interface NewRoom {
-  game: GameId;
-  status: RoomStatus;
-  players: Player[];
-  state: GameState | null;
-}
-
-async function insertRoom(room: NewRoom): Promise<RoomRow> {
-  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
-    const { data, error } = await supabase
-      .from('rooms')
-      .insert({ code: makeCode(), ...room })
-      .select(ROOM_COLUMNS)
-      .maybeSingle();
-    if (error?.code === UNIQUE_VIOLATION) continue;
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error('No se pudo crear la sala.');
-    return data as RoomRow;
-  }
-  throw new Error('No pudimos generar un código de sala libre. Inténtalo de nuevo.');
+/** Todas las operaciones pasan por la Edge Function: el navegador no lee ni escribe las partidas directamente. */
+async function call(body: Record<string, unknown>): Promise<RoomRow> {
+  const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
+    body: { ...body, playerId: getPlayerId(), key: getPlayerKey() },
+  });
+  if (error) throw new Error(SERVER_UNREACHABLE);
+  const response = data as ServerResponse | null;
+  if (!response?.ok || !response.room) throw new Error(response?.error ?? 'Respuesta inesperada del servidor.');
+  return response.room;
 }
 
 export function createRoom(game: GameId, player: Player): Promise<RoomRow> {
-  return insertRoom({ game, status: 'waiting', players: [player], state: null });
+  return call({ action: 'create', game, name: player.name });
 }
 
 export function createSoloRoom(game: GameId, player: Player): Promise<RoomRow> {
-  const players = createSoloPlayers(game, player);
-  return insertRoom({ game, status: 'waiting', players, state: null });
+  return call({ action: 'create', game, solo: true, name: player.name });
 }
 
-export async function fetchRoom(roomId: string): Promise<RoomRow | null> {
-  const { data, error } = await supabase
-    .from('rooms')
-    .select(ROOM_COLUMNS)
-    .eq('id', roomId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data as RoomRow | null;
+export function joinRoom(code: string, player: Player): Promise<RoomRow> {
+  return call({ action: 'join', code, name: player.name });
 }
 
-async function findRoomByCode(code: string): Promise<RoomRow | null> {
-  const { data, error } = await supabase
-    .from('rooms')
-    .select(ROOM_COLUMNS)
-    .eq('code', code.trim().toUpperCase())
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data as RoomRow | null;
+export function fetchRoom(roomId: string): Promise<RoomRow> {
+  return call({ action: 'view', roomId });
 }
 
-export async function updateRoom(
-  room: RoomRow,
-  changes: Partial<Pick<RoomRow, 'players' | 'state' | 'status'>>,
-): Promise<RoomRow | null> {
-  const { data, error } = await supabase
-    .from('rooms')
-    .update({ ...changes, version: room.version + 1 })
-    .eq('id', room.id)
-    .eq('version', room.version)
-    .select(ROOM_COLUMNS)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data as RoomRow | null;
+/** Empieza (o repite) la partida. `dealer` solo se usa en Casino contra bots, tras el sorteo en pantalla. */
+export function requestStart(roomId: string, dealer?: number): Promise<RoomRow> {
+  return call({ action: 'start', roomId, dealer });
 }
 
-export async function joinRoom(code: string, player: Player): Promise<RoomRow> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const room = await findRoomByCode(code);
-    if (!room) throw new Error('No encontramos una sala con ese código.');
-    if (room.players.some((p) => p.id === player.id)) return room;
-    if (room.status !== 'waiting') throw new Error('Esa partida ya empezó.');
-    if (room.players.length >= GAMES[room.game].maxPlayers) {
-      throw new Error('La sala está llena.');
-    }
-    const updated = await updateRoom(room, { players: [...room.players, player] });
-    if (updated) return updated;
-  }
-  throw new Error('La sala cambió mientras intentabas entrar. Inténtalo de nuevo.');
+export function sendMove(roomId: string, move: unknown): Promise<RoomRow> {
+  return call({ action: 'move', roomId, move });
 }
 
-export function subscribeToRoom(roomId: string, onChange: (room: RoomRow) => void): () => void {
+/** Pide al servidor una jugada automática de los bots (solo si la versión sigue siendo la que ve el cliente). */
+export function botTick(roomId: string, expectedVersion: number): Promise<RoomRow> {
+  return call({ action: 'tick', roomId, expectedVersion });
+}
+
+/**
+ * Avisa cuando la sala cambia. La sala pública no contiene cartas, así que el aviso solo trae la versión;
+ * quien lo recibe pide su vista actualizada al servidor.
+ */
+export function subscribeToRoom(roomId: string, onVersion: (version: number) => void): () => void {
   const channel = supabase
     .channel(`room:${roomId}`)
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
-      (payload) => onChange(payload.new as RoomRow),
+      (payload) => onVersion((payload.new as { version: number }).version),
     )
     .subscribe();
   return () => {

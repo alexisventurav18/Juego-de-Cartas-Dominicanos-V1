@@ -1,4 +1,5 @@
 const PLAYER_ID_KEY = 'cartas.playerId';
+const PLAYER_SECRET_KEY = 'cartas.playerKey';
 const PLAYER_NAME_KEY = 'cartas.playerName';
 const ROOM_ID_KEY = 'cartas.roomId';
 
@@ -35,6 +36,26 @@ export function getPlayerId(): string {
   sessionPlayerId = id;
   writeStorage(PLAYER_ID_KEY, id);
   return id;
+}
+
+function randomSecret(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+let sessionPlayerKey: string | null = null;
+
+/**
+ * Clave secreta del jugador: demuestra ante el servidor que eres tú (el id es público).
+ * Nunca se muestra ni se comparte; el servidor solo guarda su hash.
+ */
+export function getPlayerKey(): string {
+  const existing = readStorage(PLAYER_SECRET_KEY) ?? sessionPlayerKey;
+  if (existing) return existing;
+  const key = randomSecret();
+  sessionPlayerKey = key;
+  writeStorage(PLAYER_SECRET_KEY, key);
+  return key;
 }
 
 export function getStoredName(): string {
