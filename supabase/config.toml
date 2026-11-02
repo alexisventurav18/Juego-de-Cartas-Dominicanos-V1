@@ -1,0 +1,6 @@
+project_id = "wfxbixnkgzdssevkdgwx"
+
+# La función autentica a cada jugador por sí misma (id + clave secreta). Se desactiva la verificación
+# de JWT porque las claves publicables nuevas (sb_publishable_...) no son JWT y serían rechazadas.
+[functions.rooms]
+verify_jwt = false
