@@ -9,6 +9,8 @@ export interface ScoreLine {
   label: string;
   detail?: string;
   points: number;
+  /** La línea se muestra pero no suma (p. ej. la regla de cierre del Casino). */
+  muted?: boolean;
 }
 
 export type MoveResult<S> = { state: S } | { error: string };

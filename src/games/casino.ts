@@ -1,4 +1,4 @@
-import { americanDeck, type Card, shuffle } from './cards';
+import { americanDeck, type Card, randomInt, shuffle } from './cards';
 import {
   type Build,
   captureOptions,
@@ -17,13 +17,47 @@ import {
 import { type MoveResult, type Player, type ScoreLine, teamOf } from './shared';
 
 export const CASINO_TARGET = 21;
+/** Desde esta puntuación (al empezar la ronda) solo cuentan la mayoría de cartas y de picas. */
+export const CLOSING_THRESHOLD = 17;
+export const CARDS_MAJORITY_POINTS = 3;
+export const SPADES_MAJORITY_POINTS = 1;
 const DECK_SIZE = 52;
 const SPADES_IN_DECK = 13;
 const FORMATION_KINDS: FormationKind[] = ['sum', 'pairs'];
 
+/** Objetivos que le faltan a un equipo en cierre obligatorio. */
+export interface ClosingNeeds {
+  cards: boolean;
+  spades: boolean;
+}
+
+/**
+ * Regla de cierre obligatorio. Con 17 o más puntos (y menos de 21) el equipo solo puede
+ * sumar mayoría de cartas (3) y mayoría de picas (1), y únicamente la que le falta para
+ * llegar a 21 exactos:
+ *  - faltan 4 (17 pts): las dos.
+ *  - faltan 3 (18 pts): la mayoría de cartas.
+ *  - faltan 2 o 1 (19 o 20 pts): la mayoría de picas (la de cartas pasaría de 21).
+ * Devuelve null si el equipo todavía juega con la puntuación normal.
+ */
+export function closingNeeds(score: number): ClosingNeeds | null {
+  if (score < CLOSING_THRESHOLD || score >= CASINO_TARGET) return null;
+  const remaining = CASINO_TARGET - score;
+  if (remaining >= CARDS_MAJORITY_POINTS + SPADES_MAJORITY_POINTS) return { cards: true, spades: true };
+  if (remaining === CARDS_MAJORITY_POINTS) return { cards: true, spades: false };
+  return { cards: false, spades: true };
+}
+
+export function closingLabel(needs: ClosingNeeds): string {
+  if (needs.cards && needs.spades) return 'mayoría de cartas y mayoría de picas';
+  return needs.cards ? 'mayoría de cartas' : 'mayoría de picas';
+}
+
 export interface RoundSummary {
   lines: [ScoreLine[], ScoreLine[]];
   totals: [number, number];
+  /** Cierre obligatorio con el que empezó cada equipo la ronda (null = puntuación normal). */
+  needs?: [ClosingNeeds | null, ClosingNeeds | null];
 }
 
 export interface CaptureGroup {
@@ -74,7 +108,7 @@ export function createCasinoGame(players: Player[], dealer?: number): CasinoStat
     viraos: [0, 0],
     scores: [0, 0],
     turn: 0,
-    dealer: dealer ?? Math.floor(Math.random() * players.length),
+    dealer: dealer ?? randomInt(players.length),
     roundNo: 0,
     lastCapturer: null,
     summary: null,
@@ -93,7 +127,7 @@ function isScoringCard(card: Card): boolean {
 function deferScoringCards(deck: Card[], dealtCount: number): Card[] {
   const result = [...deck];
   for (let i = 0; i < dealtCount; i++) {
-    if (!isScoringCard(result[i]) || Math.random() < 0.5) continue;
+    if (!isScoringCard(result[i]) || randomInt(2) === 0) continue;
     const swap = result.findIndex((c, j) => j >= dealtCount && !isScoringCard(c));
     if (swap === -1) break;
     [result[i], result[swap]] = [result[swap], result[i]];
@@ -135,31 +169,54 @@ function dealMoreCards(state: CasinoState): CasinoState {
   return { ...state, deck, hands };
 }
 
-function scoreRound(captured: [Card[], Card[]], viraos: [number, number]): RoundSummary {
+export function scoreRound(
+  captured: [Card[], Card[]],
+  viraos: [number, number],
+  startScores: [number, number],
+): RoundSummary {
+  const needs: [ClosingNeeds | null, ClosingNeeds | null] = [
+    closingNeeds(startScores[0]),
+    closingNeeds(startScores[1]),
+  ];
   const lines = ([0, 1] as const).map((team): ScoreLine[] => {
     const cards = captured[team];
+    const teamNeeds = needs[team];
     const result: ScoreLine[] = [];
+    const add = (line: ScoreLine, counts: boolean) => {
+      if (counts) result.push(line);
+      else result.push({ ...line, points: 0, muted: true, detail: `${line.detail ?? ''} · no cuenta en el cierre`.trim() });
+    };
+    const normal = teamNeeds === null;
     if (cards.length * 2 > DECK_SIZE) {
-      result.push({ label: 'Mayoría de cartas', detail: `${cards.length} de ${DECK_SIZE} cartas`, points: 3 });
+      add(
+        { label: 'Mayoría de cartas', detail: `${cards.length} de ${DECK_SIZE} cartas`, points: CARDS_MAJORITY_POINTS },
+        normal || teamNeeds.cards,
+      );
     }
     if (cards.some((c) => c.suit === 'diamantes' && c.rank === 10)) {
-      result.push({ label: 'Gran Casino', detail: '10 de diamantes', points: 2 });
+      add({ label: 'Gran Casino', detail: '10 de diamantes', points: 2 }, normal);
     }
     if (cards.some((c) => c.suit === 'picas' && c.rank === 2)) {
-      result.push({ label: 'Dueño', detail: '2 de picas', points: 1 });
+      add({ label: 'Dueño', detail: '2 de picas', points: 1 }, normal);
     }
     const spades = cards.filter((c) => c.suit === 'picas').length;
     if (spades * 2 > SPADES_IN_DECK) {
-      result.push({ label: 'Mayoría de picas', detail: `${spades} de ${SPADES_IN_DECK} picas`, points: 1 });
+      add(
+        { label: 'Mayoría de picas', detail: `${spades} de ${SPADES_IN_DECK} picas`, points: SPADES_MAJORITY_POINTS },
+        normal || teamNeeds.spades,
+      );
     }
     const aces = cards.filter((c) => c.rank === 1).length;
-    if (aces > 0) result.push({ label: 'Ases', detail: `${aces} de 4 · 1 punto cada uno`, points: aces });
+    if (aces > 0) add({ label: 'Ases', detail: `${aces} de 4 · 1 punto cada uno`, points: aces }, normal);
     if (viraos[team] > 0) {
-      result.push({
-        label: 'Viraos',
-        detail: `${viraos[team]} mesa${viraos[team] === 1 ? '' : 's'} limpia${viraos[team] === 1 ? '' : 's'} · 1 punto cada una`,
-        points: viraos[team],
-      });
+      add(
+        {
+          label: 'Viraos',
+          detail: `${viraos[team]} mesa${viraos[team] === 1 ? '' : 's'} limpia${viraos[team] === 1 ? '' : 's'} · 1 punto cada una`,
+          points: viraos[team],
+        },
+        normal,
+      );
     }
     return result;
   }) as [ScoreLine[], ScoreLine[]];
@@ -168,7 +225,17 @@ function scoreRound(captured: [Card[], Card[]], viraos: [number, number]): Round
     lines[0].reduce((sum, line) => sum + line.points, 0),
     lines[1].reduce((sum, line) => sum + line.points, 0),
   ];
-  return { lines, totals };
+  return { lines, totals, needs };
+}
+
+/** Gana quien llegue a 21; si ambos llegan, el de más puntos, y a igualdad el que más sumó en la ronda. */
+export function decideWinner(scores: [number, number], roundTotals: [number, number]): number | null {
+  const reached = ([0, 1] as const).filter((team) => scores[team] >= CASINO_TARGET);
+  if (reached.length === 0) return null;
+  if (reached.length === 1) return reached[0];
+  if (scores[0] !== scores[1]) return scores[0] > scores[1] ? 0 : 1;
+  if (roundTotals[0] !== roundTotals[1]) return roundTotals[0] > roundTotals[1] ? 0 : 1;
+  return null;
 }
 
 function finishRound(state: CasinoState): CasinoState {
@@ -182,22 +249,21 @@ function finishRound(state: CasinoState): CasinoState {
     captured[0].flatMap((group) => group.cards),
     captured[1].flatMap((group) => group.cards),
   ];
-  const summary = scoreRound(flat, state.viraos);
+  const summary = scoreRound(flat, state.viraos, state.scores);
   const scores: [number, number] = [
     state.scores[0] + summary.totals[0],
     state.scores[1] + summary.totals[1],
   ];
-  const leader = scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : null;
-  const gameOver = leader !== null && scores[leader] >= CASINO_TARGET;
+  const winner = decideWinner(scores, summary.totals);
   return {
     ...state,
-    phase: gameOver ? 'gameOver' : 'roundEnd',
+    phase: winner !== null ? 'gameOver' : 'roundEnd',
     table: [],
     builds: [],
     captured,
     scores,
     summary,
-    winnerTeam: gameOver ? leader : null,
+    winnerTeam: winner,
   };
 }
 

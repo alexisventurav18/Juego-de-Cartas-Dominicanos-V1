@@ -1,4 +1,4 @@
-import { type Card, americanDoubleDeck, shuffle } from './cards';
+import { type Card, americanDoubleDeck, randomInt, shuffle } from './cards';
 import { type MoveResult, type Player, type ScoreLine, teamOf } from './shared';
 
 export const BURAKO_TARGET = 3000;
@@ -83,7 +83,7 @@ export function isValidMeld(cards: Card[]): boolean {
 }
 
 function newId(): string {
-  return Math.random().toString(36).slice(2, 10);
+  return Array.from({ length: 8 }, () => randomInt(36).toString(36)).join('');
 }
 
 function pickCards(hand: Card[], ids: string[]): Card[] | null {

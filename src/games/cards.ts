@@ -47,7 +47,7 @@ export function rankLabel(card: Card): string {
   return rankName(card.rank);
 }
 
-function randomIndex(max: number): number {
+export function randomInt(max: number): number {
   const range = 0x100000000;
   const limit = range - (range % max);
   const buffer = new Uint32Array(1);
@@ -62,7 +62,7 @@ function randomIndex(max: number): number {
 export function shuffle<T>(items: T[]): T[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = randomIndex(i + 1);
+    const j = randomInt(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;

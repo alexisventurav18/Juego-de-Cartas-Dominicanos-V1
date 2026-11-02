@@ -37,6 +37,9 @@ export const GAMES: Record<GameId, GameInfo> = {
       'Al terminar una ronda, solo el repartidor de la siguiente puede iniciarla con su botón; si el repartidor es un bot, la inicia sola tras una pausa.',
       'Puntos por ronda: 3 por la mayoría de cartas, 2 por el 10 de diamantes, 1 por el 2 de picas, 1 por la mayoría de picas y 1 por cada as.',
       'Gana el primer equipo que llegue a 21 puntos.',
+      'Cierre obligatorio: cuando un equipo empieza una ronda con 17 puntos o más, los ases, el Gran Casino, el Dueño y los viraos dejan de sumarle. Solo puede ganar con la mayoría de cartas (3 puntos) y la mayoría de picas (1 punto), y únicamente la que le falte para llegar a 21 exactos.',
+      'Si con 17 puntos consigue solo una de las dos, suma lo logrado y debe conseguir la otra en las rondas siguientes: 17 + mayoría de cartas = 20, y le falta la mayoría de picas; 17 + mayoría de picas = 18, y le falta la mayoría de cartas. Con 19 o 20 puntos le falta la mayoría de picas.',
+      'Si los dos equipos completan sus 21 en la misma ronda, gana el que tenga más puntos y, de empatar, el que más puntos hizo en esa ronda.',
     ],
   },
   cinquillo: {

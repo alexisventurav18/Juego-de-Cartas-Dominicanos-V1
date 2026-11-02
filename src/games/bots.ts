@@ -1,8 +1,8 @@
 import { AMERICAN_RANKS, type Card } from './cards';
-import { applyCasinoMove, type CasinoMove, type CasinoState, formationMoves, nextDealerSeat } from './casino';
-import { captureOptions, type TableItem, tableItems } from './casinoCapture';
+import { applyCasinoMove, nextDealerSeat } from './casino';
+import { casinoBotMove } from './casinoBot';
 import { applyCinquilloMove, type CinquilloState, isPlayable } from './cinquillo';
-import { applyBurakoMove, type BurakoState, cardPoints, isValidMeld, type Meld } from './burako';
+import { applyBurakoMove, type BurakoState, cardPoints, isValidMeld, isWild, type Meld } from './burako';
 import type { GameState } from './index';
 import { isBotPlayer, type MoveResult, teamOf } from './shared';
 
@@ -37,63 +37,53 @@ export function botStep(state: GameState): BotStep | null {
   return { result, delayMs: BOT_MOVE_MS };
 }
 
-function casinoValue(card: Card): number {
-  if (card.suit === 'diamantes' && card.rank === 10) return 5;
-  if (card.suit === 'picas' && card.rank === 2) return 4;
-  if (card.rank === 1) return 2;
-  if (card.suit === 'picas') return 1.5;
-  return 1;
+function rankIndex(card: Card): number {
+  return AMERICAN_RANKS.indexOf(card.rank);
 }
 
-function captureScore(taken: TableItem[], tableSize: number): number {
-  const cards = taken.flatMap((item) => item.cards);
-  const value = cards.reduce((sum, c) => sum + casinoValue(c), 0);
-  const clearsTable = taken.length === tableSize ? 3 : 0;
-  return value + cards.length * 0.1 + clearsTable;
+/** Cuántas cartas de mi mano encadenan seguidas desde `start` en la dirección `step`. */
+function chainLength(hand: Card[], suit: Card['suit'], start: number, step: 1 | -1): number {
+  let length = 0;
+  for (let i = start; i >= 0 && i < AMERICAN_RANKS.length; i += step) {
+    if (!hand.some((c) => c.suit === suit && rankIndex(c) === i)) break;
+    length += 1;
+  }
+  return length;
 }
 
-function casinoBotMove(state: CasinoState): MoveResult<CasinoState> {
+/**
+ * Puntúa una carta jugable en Cinquillo:
+ *  - prefiere las que dejan jugables otras cartas mías de la misma escalera (cadena propia),
+ *  - evita abrirle la siguiente carta a los rivales si yo no la tengo,
+ *  - los 5 abren una fila nueva: casi siempre conviene, sobre todo si tengo vecinas.
+ * Ajustado con scripts/simulate.ts; en Cinquillo pesa mucho la suerte del reparto,
+ * así que la ventaja realista es de pocos puntos porcentuales.
+ */
+function cinquilloScore(card: Card, hand: Card[], board: Card[]): number {
+  const idx = rankIndex(card);
+  if (card.rank === 5) {
+    const up = chainLength(hand, card.suit, idx + 1, 1);
+    const down = chainLength(hand, card.suit, idx - 1, -1);
+    return 4 + (up + down) * 1.5;
+  }
+  const row = board.filter((c) => c.suit === card.suit).map(rankIndex);
+  const goingDown = idx === Math.min(...row) - 1;
+  const step: 1 | -1 = goingDown ? -1 : 1;
+  const nextIdx = idx + step;
+  const atEnd = nextIdx < 0 || nextIdx >= AMERICAN_RANKS.length;
+  const chain = atEnd ? 0 : chainLength(hand, card.suit, nextIdx, step);
+  const opensForRivals = !atEnd && chain === 0 ? 1 : 0;
+  return chain * 2.5 - opensForRivals * 1.0;
+}
+
+export function cinquilloBotMove(state: CinquilloState): MoveResult<CinquilloState> {
   const seat = state.turn;
   const hand = state.hands[seat];
-  const items = tableItems(state.table, state.builds);
-  let best: { cardId: string; captureIds: string[]; score: number } | null = null;
-  for (const card of hand) {
-    for (const taken of captureOptions(card, items, seat)) {
-      const score = captureScore(taken, items.length);
-      if (!best || score > best.score) {
-        best = { cardId: card.id, captureIds: taken.map((item) => item.id), score };
-      }
-    }
-  }
-  if (best) {
-    return applyCasinoMove(state, seat, { type: 'play', cardId: best.cardId, captureIds: best.captureIds });
-  }
-  const formation = bestFormation(state);
-  if (formation) return applyCasinoMove(state, seat, formation);
-  const discard = [...hand].sort((a, b) => casinoValue(a) - casinoValue(b))[0];
-  return applyCasinoMove(state, seat, { type: 'play', cardId: discard.id, captureIds: [] });
-}
-
-function formationScore(move: CasinoMove): number {
-  if (move.type === 'build' || move.type === 'expand') return move.tableIds.length + 1;
-  if (move.type === 'convert') return 1;
-  return 0.5;
-}
-
-function bestFormation(state: CasinoState): CasinoMove | null {
-  const moves = formationMoves(state, state.turn);
-  if (moves.length === 0) return null;
-  return moves.reduce((a, b) => (formationScore(b) > formationScore(a) ? b : a));
-}
-
-function cinquilloBotMove(state: CinquilloState): MoveResult<CinquilloState> {
-  const seat = state.turn;
-  const playable = state.hands[seat].filter((c) => isPlayable(c, state.board));
+  const playable = hand.filter((c) => isPlayable(c, state.board));
   if (playable.length === 0) return applyCinquilloMove(state, seat, { type: 'pass' });
-  const fiveIndex = AMERICAN_RANKS.indexOf(5);
-  const priority = (c: Card) =>
-    c.rank === 5 ? Number.POSITIVE_INFINITY : Math.abs(AMERICAN_RANKS.indexOf(c.rank) - fiveIndex);
-  const card = playable.reduce((a, b) => (priority(b) > priority(a) ? b : a));
+  const card = playable.reduce((a, b) =>
+    cinquilloScore(b, hand, state.board) > cinquilloScore(a, hand, state.board) ? b : a,
+  );
   return applyCinquilloMove(state, seat, { type: 'play', cardId: card.id });
 }
 
@@ -123,7 +113,7 @@ function findPlacement(extra: Card[], hand: Card[], melds: Meld[]): Placement | 
   return fresh ? { handIds: fresh.map((c) => c.id) } : null;
 }
 
-function burakoBotMove(state: BurakoState): MoveResult<BurakoState> {
+export function burakoBotMove(state: BurakoState): MoveResult<BurakoState> {
   const seat = state.turn;
   const melds = state.melds[teamOf(seat)];
   const hand = state.hands[seat];
@@ -140,6 +130,34 @@ function burakoBotMove(state: BurakoState): MoveResult<BurakoState> {
   const placement = findPlacement([], hand, melds);
   if (placement) return applyBurakoMove(state, seat, { type: 'meld', ...placement });
 
-  const discard = [...hand].sort((a, b) => cardPoints(a) - cardPoints(b))[0];
-  return applyBurakoMove(state, seat, { type: 'discard', cardId: discard.id });
+  return applyBurakoMove(state, seat, { type: 'discard', cardId: pickBurakoDiscard(state, seat).id });
+}
+
+/**
+ * Descarta la carta menos útil: sin vecinas en mi mano, que no encaje en mis juegos y que no le
+ * sirva a los rivales (quien levanta el pozo se lleva todo). Los comodines no se tiran.
+ * A igualdad, se suelta la de más puntos para reducir lo que quedaría sin bajar.
+ */
+function pickBurakoDiscard(state: BurakoState, seat: number): Card {
+  const hand = state.hands[seat];
+  const team = teamOf(seat);
+  const mine = state.melds[team];
+  const rivals = state.melds[1 - team];
+  const keepScore = (card: Card): number => {
+    if (isWild(card)) return 1000;
+    let synergy = 0;
+    for (const other of hand) {
+      if (other.id === card.id || isWild(other)) continue;
+      if (other.rank === card.rank) synergy += 2;
+      else if (other.suit === card.suit) {
+        const gap = Math.abs(other.rank - card.rank);
+        if (gap === 1) synergy += 1.5;
+        else if (gap === 2) synergy += 1;
+      }
+    }
+    const extendsMine = mine.some((m) => isValidMeld([...m.cards, card]));
+    const extendsRival = rivals.some((m) => isValidMeld([...m.cards, card]));
+    return synergy * 3 + (extendsMine ? 10 : 0) + (extendsRival ? 8 : 0) - cardPoints(card) * 0.05;
+  };
+  return hand.reduce((best, card) => (keepScore(card) < keepScore(best) ? card : best));
 }
