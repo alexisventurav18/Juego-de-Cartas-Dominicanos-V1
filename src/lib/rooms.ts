@@ -1,4 +1,5 @@
 import { createSoloPlayers, GAMES, type GameState } from '@/games';
+import { randomInt } from '@/games/cards';
 import type { GameId, Player } from '@/games/shared';
 import { supabase } from './supabase';
 
@@ -17,10 +18,14 @@ export interface RoomRow {
 const ROOM_COLUMNS = 'id, code, game, status, players, state, version';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+const CODE_LENGTH = 5;
+const UNIQUE_VIOLATION = '23505';
+const MAX_CODE_ATTEMPTS = 6;
+
 function makeCode(): string {
   let code = '';
-  for (let i = 0; i < 5; i++) {
-    code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   }
   return code;
 }
@@ -33,14 +38,18 @@ interface NewRoom {
 }
 
 async function insertRoom(room: NewRoom): Promise<RoomRow> {
-  const { data, error } = await supabase
-    .from('rooms')
-    .insert({ code: makeCode(), ...room })
-    .select(ROOM_COLUMNS)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('No se pudo crear la sala.');
-  return data as RoomRow;
+  for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+    const { data, error } = await supabase
+      .from('rooms')
+      .insert({ code: makeCode(), ...room })
+      .select(ROOM_COLUMNS)
+      .maybeSingle();
+    if (error?.code === UNIQUE_VIOLATION) continue;
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('No se pudo crear la sala.');
+    return data as RoomRow;
+  }
+  throw new Error('No pudimos generar un código de sala libre. Inténtalo de nuevo.');
 }
 
 export function createRoom(game: GameId, player: Player): Promise<RoomRow> {
