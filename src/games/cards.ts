@@ -38,9 +38,13 @@ export function isRedSuit(suit: AmericanSuit): boolean {
   return suit === 'corazones' || suit === 'diamantes';
 }
 
+export function rankName(rank: number): string {
+  return RANK_LABEL[rank] ?? String(rank);
+}
+
 export function rankLabel(card: Card): string {
   if (card.suit === 'comodin') return 'JOKER';
-  return RANK_LABEL[card.rank] ?? String(card.rank);
+  return rankName(card.rank);
 }
 
 function randomIndex(max: number): number {

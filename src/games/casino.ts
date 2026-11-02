@@ -9,6 +9,7 @@ import {
   MAX_CAPTURE_VALUE,
   MAX_TABLE_SUM,
   mixesRivalBuild,
+  pairsRankOf,
   raiseValue,
   tableItems,
 } from './casinoCapture';
@@ -27,6 +28,7 @@ export interface RoundSummary {
 export interface CaptureGroup {
   cards: Card[];
   virao: boolean;
+  pairsRank: number | null;
 }
 
 export interface CasinoState {
@@ -149,7 +151,7 @@ function finishRound(state: CasinoState): CasinoState {
   const leftover = [...state.table, ...state.builds.flatMap((build) => build.cards)];
   if (state.lastCapturer !== null && leftover.length > 0) {
     const team = teamOf(state.lastCapturer);
-    captured[team] = [...captured[team], { cards: leftover, virao: false }];
+    captured[team] = [...captured[team], { cards: leftover, virao: false, pairsRank: null }];
   }
   const flat: [Card[], Card[]] = [
     captured[0].flatMap((group) => group.cards),
@@ -194,13 +196,14 @@ function collectTable(
   cards: Card[],
   table: Card[],
   builds: Build[],
+  pairsRank: number | null,
 ): CasinoState {
   const team = teamOf(seat);
   const other = 1 - team;
   const roundOver = state.hands.every((hand) => hand.length === 0) && state.deck.length === 0;
   const virao = table.length === 0 && builds.length === 0 && !roundOver;
   const captured: [CaptureGroup[], CaptureGroup[]] = [[...state.captured[0]], [...state.captured[1]]];
-  captured[team] = [...captured[team], { cards, virao }];
+  captured[team] = [...captured[team], { cards, virao, pairsRank }];
   const viraos: [number, number] = [state.viraos[0], state.viraos[1]];
   if (virao) {
     if (viraos[other] > 0) viraos[other] -= 1;
@@ -236,7 +239,8 @@ function playCard(
   const table = state.table.filter((c) => !captureIds.includes(c.id));
   const builds = state.builds.filter((build) => !captureIds.includes(build.id));
   const taken = selected.flatMap((item) => item.cards);
-  return { state: collectTable(state, seat, [card, ...taken], table, builds) };
+  const pairsRank = pairsRankOf(card, selected);
+  return { state: collectTable(state, seat, [card, ...taken], table, builds, pairsRank) };
 }
 
 function buildCombination(

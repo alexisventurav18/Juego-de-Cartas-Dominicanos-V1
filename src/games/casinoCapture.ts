@@ -36,21 +36,19 @@ export function tableItems(loose: Card[], builds: Build[]): TableItem[] {
   return [...looseItems, ...buildItems];
 }
 
-function isSameRankCard(card: Card, item: TableItem): boolean {
-  return item.cards.length === 1 && item.cards[0].rank === card.rank;
-}
-
-function canSplitIntoTargets(items: TableItem[], target: number): boolean {
+function canSplitIntoTargets(items: TableItem[], target: number, minGroups: number): boolean {
   const memo = new Map<string, boolean>();
-  const place = (i: number, filled: number): boolean => {
-    if (i === items.length) return filled === 0;
-    const key = `${i}:${filled}`;
+  const place = (i: number, filled: number, done: number): boolean => {
+    if (i === items.length) return filled === 0 && done >= minGroups;
+    const key = `${i}:${filled}:${done}`;
     const known = memo.get(key);
     if (known !== undefined) return known;
     let ok = false;
     for (const value of items[i].values) {
       const next = filled + value;
-      if (next <= target && place(i + 1, next === target ? 0 : next)) {
+      if (next > target) continue;
+      const closed = next === target;
+      if (place(i + 1, closed ? 0 : next, closed ? Math.min(done + 1, minGroups) : done)) {
         ok = true;
         break;
       }
@@ -58,12 +56,16 @@ function canSplitIntoTargets(items: TableItem[], target: number): boolean {
     memo.set(key, ok);
     return ok;
   };
-  return place(0, 0);
+  return place(0, 0, 0);
 }
 
 export function isValidCapture(card: Card, items: TableItem[]): boolean {
   if (items.length === 0) return false;
-  return captureValues(card).some((value) => canSplitIntoTargets(items, value));
+  return captureValues(card).some((value) => canSplitIntoTargets(items, value, 1));
+}
+
+export function pairsRankOf(card: Card, items: TableItem[]): number | null {
+  return captureValues(card).find((value) => canSplitIntoTargets(items, value, 2)) ?? null;
 }
 
 export function mixesRivalBuild(items: TableItem[], seat: number): boolean {
@@ -78,17 +80,12 @@ export function isLegalCapture(card: Card, items: TableItem[], seat: number): bo
 }
 
 export function captureOptions(card: Card, items: TableItem[], seat: number): TableItem[][] {
-  const sameRank = items.filter((item) => isSameRankCard(card, item));
-  const others = items.filter((item) => !isSameRankCard(card, item));
   const options: TableItem[][] = [];
-  for (let mask = 1; mask < 1 << sameRank.length; mask++) {
-    options.push(sameRank.filter((_, i) => mask & (1 << i)));
-  }
   const walk = (start: number, chosen: TableItem[], minSum: number) => {
     if (chosen.length > 0 && isLegalCapture(card, chosen, seat)) options.push([...chosen]);
-    for (let i = start; i < others.length; i++) {
-      const next = minSum + Math.min(...others[i].values);
-      if (next <= MAX_TABLE_SUM) walk(i + 1, [...chosen, others[i]], next);
+    for (let i = start; i < items.length; i++) {
+      const next = minSum + Math.min(...items[i].values);
+      if (next <= MAX_TABLE_SUM) walk(i + 1, [...chosen, items[i]], next);
     }
   };
   walk(0, [], 0);

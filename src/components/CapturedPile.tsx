@@ -1,4 +1,5 @@
 import type { Card } from '@/games/cards';
+import { rankName } from '@/games/cards';
 import type { CaptureGroup } from '@/games/casino';
 import FaceDownStack from './FaceDownStack';
 import PlayingCard from './PlayingCard';
@@ -17,6 +18,9 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
     .filter((group) => !group.virao)
     .reduce((sum, group) => sum + group.cards.length, 0);
   const viraos = groups.filter((group) => group.virao);
+  const pairs = groups.flatMap((group) =>
+    group.pairsRank === null ? [] : [{ rank: group.pairsRank, size: group.cards.length }],
+  );
 
   return (
     <div className="space-y-3">
@@ -26,19 +30,30 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
       {cardCount === 0 ? (
         <p className="text-sm text-stone-400">Todavía no hay cartas capturadas.</p>
       ) : (
-        <div className="flex flex-wrap items-end gap-4">
-          {hiddenCount > 0 && (
-            <div className="space-y-2">
-              <FaceDownStack count={hiddenCount} size="sm" />
-              <p className="text-xs text-stone-500">{hiddenCount} boca abajo</p>
-            </div>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end gap-4">
+            {hiddenCount > 0 && (
+              <div className="space-y-2">
+                <FaceDownStack count={hiddenCount} size="sm" />
+                <p className="text-xs text-stone-500">{hiddenCount} boca abajo</p>
+              </div>
+            )}
+            {viraos.map((group, i) => (
+              <div key={i} className="space-y-2">
+                <CaptureStack cards={group.cards} />
+                <p className="text-xs font-medium text-amber-700">Virao</p>
+              </div>
+            ))}
+          </div>
+          {pairs.length > 0 && (
+            <ul className="space-y-1">
+              {pairs.map((pair, i) => (
+                <li key={i} className="text-xs text-stone-600">
+                  Pares de {rankName(pair.rank)} · {pair.size} cartas
+                </li>
+              ))}
+            </ul>
           )}
-          {viraos.map((group, i) => (
-            <div key={i} className="space-y-2">
-              <CaptureStack cards={group.cards} />
-              <p className="text-xs font-medium text-amber-700">Virao</p>
-            </div>
-          ))}
         </div>
       )}
     </div>
