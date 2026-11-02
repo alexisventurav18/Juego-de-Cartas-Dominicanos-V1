@@ -222,6 +222,15 @@ interface Candidate {
 }
 
 export function casinoBotMove(state: CasinoState): MoveResult<CasinoState> {
+  return chooseCasino(state).result;
+}
+
+/** Jugada que elegiría el bot (útil para pruebas y para sugerencias). */
+export function chooseCasinoMove(state: CasinoState): CasinoMove | null {
+  return chooseCasino(state).move;
+}
+
+function chooseCasino(state: CasinoState): { move: CasinoMove | null; result: MoveResult<CasinoState> } {
   const seat = state.turn;
   const team = teamOf(seat);
   const hand = state.hands[seat];
@@ -258,28 +267,30 @@ export function casinoBotMove(state: CasinoState): MoveResult<CasinoState> {
 
   const top = (list: Candidate[], limit: number) => [...list].sort((a, b) => b.base - a.base).slice(0, limit);
   const pool = [...top(captures, MAX_CAPTURE_CANDIDATES), ...drops, ...top(formations, MAX_FORMATION_CANDIDATES)];
-  if (pool.length === 0) return fallbackMove(state);
+  if (pool.length === 0) {
+    const fallback = fallbackMove(state);
+    return { move: fallback.move, result: fallback.result };
+  }
 
   let best: Candidate | null = null;
   for (const candidate of pool) {
     candidate.total = candidate.base - expectedLoss(candidate.next, ctx);
     if (!best || candidate.total > best.total) best = candidate;
   }
-  return { state: (best as Candidate).next };
+  const chosen = best as Candidate;
+  return { move: chosen.move, result: { state: chosen.next } };
 }
 
-function fallbackMove(state: CasinoState): MoveResult<CasinoState> {
+function fallbackMove(state: CasinoState): { move: CasinoMove; result: MoveResult<CasinoState> } {
   const seat = state.turn;
   const items = tableItems(state.table, state.builds);
+  let move: CasinoMove = { type: 'play', cardId: state.hands[seat][0].id, captureIds: [] };
   for (const card of state.hands[seat]) {
     const options = captureOptions(card, items, seat);
     if (options.length > 0) {
-      return applyCasinoMove(state, seat, {
-        type: 'play',
-        cardId: card.id,
-        captureIds: options[0].map((item) => item.id),
-      });
+      move = { type: 'play', cardId: card.id, captureIds: options[0].map((item) => item.id) };
+      break;
     }
   }
-  return applyCasinoMove(state, seat, { type: 'play', cardId: state.hands[seat][0].id, captureIds: [] });
+  return { move, result: applyCasinoMove(state, seat, move) };
 }

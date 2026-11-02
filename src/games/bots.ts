@@ -18,6 +18,21 @@ function isBotTurn(state: GameState): boolean {
   return state.phase === 'playing' && isBotPlayer(state.players[state.turn]);
 }
 
+/**
+ * Espera antes de la siguiente jugada automática, o null si ahora no le toca a un bot.
+ * Solo usa datos públicos, así que funciona con la vista de cualquier jugador.
+ */
+export function botTickDelay(state: GameState): number | null {
+  if (state.game === 'cinquillo') return isBotTurn(state) ? BOT_MOVE_MS : null;
+  if (state.phase === 'roundEnd') {
+    if (state.game === 'casino') {
+      return isBotPlayer(state.players[nextDealerSeat(state)]) ? ROUND_PAUSE_MS : null;
+    }
+    return state.summary ? ROUND_PAUSE_MS : BOT_MOVE_MS;
+  }
+  return isBotTurn(state) ? BOT_MOVE_MS : null;
+}
+
 export function botStep(state: GameState): BotStep | null {
   if (state.game === 'cinquillo') {
     if (!isBotTurn(state)) return null;
