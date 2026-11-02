@@ -73,6 +73,7 @@ function casinoBotMove(state: CasinoState): MoveResult<CasinoState> {
 
 function formationScore(move: CasinoMove): number {
   if (move.type === 'build' || move.type === 'expand') return move.tableIds.length + 1;
+  if (move.type === 'convert') return 1;
   return 0.5;
 }
 

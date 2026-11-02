@@ -151,6 +151,7 @@ export function formationValue(
 }
 
 export function raiseValue(card: Card, build: Build, handAfter: Card[]): number | null {
+  if (build.kind === 'pairs') return null;
   const value = build.value + card.rank;
   return value <= MAX_CAPTURE_VALUE && handCanCapture(handAfter, value) ? value : null;
 }
@@ -161,14 +162,12 @@ export function expansionValue(
   looseCards: Card[],
   handAfter: Card[],
 ): number | null {
-  if (looseCards.length === 0) return null;
-  const added = card.rank + sumRanks(looseCards);
-  let value: number;
-  if (build.kind === 'pairs') {
-    if (added !== build.value) return null;
-    value = build.value;
-  } else {
-    value = build.value + added;
-  }
+  if (build.kind === 'pairs' || looseCards.length === 0) return null;
+  const value = build.value + card.rank + sumRanks(looseCards);
   return value <= MAX_CAPTURE_VALUE && handCanCapture(handAfter, value) ? value : null;
+}
+
+export function convertValue(card: Card, build: Build, handAfter: Card[]): number | null {
+  if (build.kind !== 'sum' || card.rank !== build.value) return null;
+  return handCanCapture(handAfter, build.value) ? build.value : null;
 }

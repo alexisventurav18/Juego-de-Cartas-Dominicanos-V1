@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CASINO_TARGET, type CasinoMove, type CasinoState, isCaptureForced } from '@/games/casino';
 import {
   canCapture,
+  convertValue,
   expansionValue,
   formationValue,
   isLegalCapture,
@@ -10,6 +11,7 @@ import {
 } from '@/games/casinoCapture';
 import { teamName, teamOf } from '@/games/shared';
 import CapturedPile from './CapturedPile';
+import DealerReveal from './DealerReveal';
 import FaceDownStack from './FaceDownStack';
 import PlayingCard, { CardBack } from './PlayingCard';
 import RoundResultPanel from './RoundResultPanel';
@@ -28,6 +30,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const [cardId, setCardId] = useState<string | null>(null);
   const [tableIds, setTableIds] = useState<string[]>([]);
   const deal = useDealIntro(state.roundNo, state.players.length);
+  const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1);
 
   const myTurn = state.phase === 'playing' && state.turn === seat && !deal.dealing;
   const card = state.hands[seat].find((c) => c.id === cardId) ?? null;
@@ -53,6 +56,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const expandTarget =
     canFormCombination && selectedBuilds.length === 1 && selectedLoose.length > 0 ? selectedBuilds[0] : null;
   const expandedValue = expandTarget && card ? expansionValue(card, expandTarget, selectedLoose, handAfter) : null;
+  const convertedValue = raiseTarget && card ? convertValue(card, raiseTarget, handAfter) : null;
 
   const reset = () => {
     setCardId(null);
@@ -106,6 +110,10 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
     }
   };
 
+  const convert = () => {
+    if (card && raiseTarget) submit({ type: 'convert', cardId: card.id, buildId: raiseTarget.id });
+  };
+
   const hint = (() => {
     if (state.phase !== 'playing') return '';
     if (deal.dealing) {
@@ -120,6 +128,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
     if (captureReady) return 'Listo: te llevas las cartas seleccionadas.';
     if (expandedValue !== null) return `Puedes ampliar la combinación a ${expandedValue} con tu carta y las cartas sueltas.`;
     if (raisedValue !== null) return `Puedes subir la combinación a ${raisedValue} con tu carta.`;
+    if (convertedValue !== null) return `Puedes convertir la sumatoria en pares de ${convertedValue}.`;
     if (sumValue !== null) return `Puedes formar una sumatoria de ${sumValue}.`;
     if (pairsValue !== null) return `Puedes formar pares de ${pairsValue}.`;
     if (selectedItems.length > 0) return 'Esa selección no es válida con tu carta.';
@@ -133,6 +142,9 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
 
   return (
     <div className="space-y-6">
+      {dealerOpen && (
+        <DealerReveal players={state.players} dealer={state.dealer} onDone={() => setDealerOpen(false)} />
+      )}
       <ScoreBoard
         teams={[0, 1].map((team) => {
           const capturedCount = state.captured[team].reduce((sum, group) => sum + group.cards.length, 0);
@@ -251,6 +263,14 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-medium text-stone-900 shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600"
               >
                 Subir combinación
+              </button>
+              <button
+                type="button"
+                onClick={convert}
+                disabled={convertedValue === null}
+                className="rounded-xl border border-amber-500 bg-white px-5 py-2.5 text-sm font-medium text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400"
+              >
+                Convertir en pares
               </button>
               <button
                 type="button"

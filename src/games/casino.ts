@@ -2,6 +2,7 @@ import { americanDeck, type Card, shuffle } from './cards';
 import {
   type Build,
   captureOptions,
+  convertValue,
   expansionValue,
   type FormationKind,
   formationValue,
@@ -44,6 +45,7 @@ export interface CasinoState {
   viraos: [number, number];
   scores: [number, number];
   turn: number;
+  dealer: number;
   roundNo: number;
   lastCapturer: number | null;
   summary: RoundSummary | null;
@@ -54,6 +56,7 @@ export type CasinoMove =
   | { type: 'play'; cardId: string; captureIds: string[] }
   | { type: 'build'; cardId: string; kind: FormationKind; tableIds: string[] }
   | { type: 'raise'; cardId: string; buildId: string }
+  | { type: 'convert'; cardId: string; buildId: string }
   | { type: 'expand'; cardId: string; buildId: string; tableIds: string[] }
   | { type: 'nextRound' };
 
@@ -71,6 +74,7 @@ export function createCasinoGame(players: Player[]): CasinoState {
     viraos: [0, 0],
     scores: [0, 0],
     turn: 0,
+    dealer: Math.floor(Math.random() * players.length),
     roundNo: 0,
     lastCapturer: null,
     summary: null,
@@ -78,9 +82,25 @@ export function createCasinoGame(players: Player[]): CasinoState {
   });
 }
 
+function isScoringCard(card: Card): boolean {
+  return card.suit === 'picas' || card.rank === 1 || (card.suit === 'diamantes' && card.rank === 10);
+}
+
+function deferScoringCards(deck: Card[], dealtCount: number): Card[] {
+  const result = [...deck];
+  for (let i = 0; i < dealtCount; i++) {
+    if (!isScoringCard(result[i]) || Math.random() < 0.5) continue;
+    const swap = result.findIndex((c, j) => j >= dealtCount && !isScoringCard(c));
+    if (swap === -1) break;
+    [result[i], result[swap]] = [result[swap], result[i]];
+  }
+  return result;
+}
+
 function dealRound(state: CasinoState): CasinoState {
   const n = state.players.length;
-  const deck = shuffle(americanDeck());
+  const dealer = state.roundNo === 0 ? state.dealer : (state.dealer + 1) % n;
+  const deck = deferScoringCards(shuffle(americanDeck()), 4 * n + 4);
   const hands: Card[][] = Array.from({ length: n }, () => []);
   for (let i = 0; i < 4; i++) {
     for (let seat = 0; seat < n; seat++) hands[seat].push(...deck.splice(0, 1));
@@ -94,7 +114,8 @@ function dealRound(state: CasinoState): CasinoState {
     builds: [],
     captured: [[], []],
     viraos: [0, 0],
-    turn: state.roundNo % n,
+    dealer,
+    turn: (dealer + 1) % n,
     roundNo: state.roundNo + 1,
     lastCapturer: null,
     summary: null,
@@ -294,6 +315,25 @@ function raiseCombination(
   return { state: advanceTurn({ ...state, builds }, seat) };
 }
 
+function convertCombination(
+  state: CasinoState,
+  seat: number,
+  card: Card,
+  buildId: string,
+): MoveResult<CasinoState> {
+  const build = state.builds.find((b) => b.id === buildId);
+  if (!build) return { error: 'Esa combinación ya no está en la mesa.' };
+  if (convertValue(card, build, state.hands[seat]) === null) {
+    return {
+      error: 'No puedes convertir esta sumatoria en pares: necesitas una carta de su mismo valor y que te quede en mano otra de ese valor.',
+    };
+  }
+  const builds = state.builds.map((b) =>
+    b.id === buildId ? { ...b, kind: 'pairs' as const, cards: [...b.cards, card] } : b,
+  );
+  return { state: advanceTurn({ ...state, builds }, seat) };
+}
+
 function expandCombination(
   state: CasinoState,
   seat: number,
@@ -360,12 +400,16 @@ export function formationMoves(state: CasinoState, seat: number): CasinoMove[] {
       if (raiseValue(card, build, rest) !== null) {
         moves.push({ type: 'raise', cardId: card.id, buildId: build.id });
       }
+      if (convertValue(card, build, rest) !== null) {
+        moves.push({ type: 'convert', cardId: card.id, buildId: build.id });
+      }
     }
   }
   return moves;
 }
 
 export function isCaptureForced(state: CasinoState, seat: number): boolean {
+  if (!state.builds.some((build) => build.owner === seat)) return false;
   const items = tableItems(state.table, state.builds);
   const options = state.hands[seat].flatMap((card) => captureOptions(card, items, seat));
   if (options.length === 0) return false;
@@ -396,5 +440,6 @@ export function applyCasinoMove(
   if (move.type === 'play') return playCard(next, seat, card, move.captureIds, forced);
   if (move.type === 'build') return buildCombination(next, seat, card, move.kind, move.tableIds);
   if (move.type === 'raise') return raiseCombination(next, seat, card, move.buildId);
+  if (move.type === 'convert') return convertCombination(next, seat, card, move.buildId);
   return expandCombination(next, seat, card, move.buildId, move.tableIds);
 }
