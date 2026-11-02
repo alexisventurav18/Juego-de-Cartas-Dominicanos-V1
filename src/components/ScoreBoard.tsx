@@ -4,6 +4,8 @@ export interface TeamScore {
   goal: number;
   extra: string;
   active: boolean;
+  /** Aviso destacado bajo el marcador (p. ej. cierre obligatorio). */
+  note?: string;
 }
 
 export default function ScoreBoard({ teams }: { teams: TeamScore[] }) {
@@ -30,6 +32,11 @@ export default function ScoreBoard({ teams }: { teams: TeamScore[] }) {
               />
             </div>
             <p className="mt-2 text-xs text-stone-500">{team.extra}</p>
+            {team.note && (
+              <p className="mt-2 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-medium leading-snug text-amber-900">
+                {team.note}
+              </p>
+            )}
           </div>
         );
       })}

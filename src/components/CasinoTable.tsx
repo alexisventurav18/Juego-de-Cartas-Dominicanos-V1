@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { CASINO_TARGET, type CasinoMove, type CasinoState, isCaptureForced, nextDealerSeat } from '@/games/casino';
+import {
+  CASINO_TARGET,
+  type CasinoMove,
+  type CasinoState,
+  closingLabel,
+  closingNeeds,
+  isCaptureForced,
+  nextDealerSeat,
+} from '@/games/casino';
 import {
   canCapture,
   convertValue,
@@ -174,6 +182,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
       {showVictory && <VictoryCelebration onContinue={() => setVictoryDismissedRound(state.roundNo)} />}
       <ScoreBoard
         teams={[0, 1].map((team) => {
+          const needs = closingNeeds(state.scores[team]);
           const capturedCount = state.captured[team].reduce((sum, group) => sum + group.cards.length, 0);
           return {
             name: teamName(state.players, team),
@@ -181,6 +190,9 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             goal: CASINO_TARGET,
             extra: `${capturedCount} cartas · ${state.viraos[team]} virao${state.viraos[team] === 1 ? '' : 's'}`,
             active: teamOf(seat) === team,
+            note: needs
+              ? `Cierre obligatorio: solo suma con ${closingLabel(needs)} (faltan ${CASINO_TARGET - state.scores[team]} pts).`
+              : undefined,
           };
         })}
       />

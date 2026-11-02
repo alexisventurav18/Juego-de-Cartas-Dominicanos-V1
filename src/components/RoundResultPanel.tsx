@@ -31,10 +31,18 @@ export default function RoundResultPanel({ title, lines, totals, teamNames, onNe
               {lines[team].map((line) => (
                 <li key={line.label} className="flex justify-between gap-3">
                   <span>
-                    <span className="block text-stone-800">{line.label}</span>
-                    {line.detail && <span className="block text-xs text-stone-500">{line.detail}</span>}
+                    <span className={`block ${line.muted ? 'text-stone-400 line-through' : 'text-stone-800'}`}>
+                      {line.label}
+                    </span>
+                    {line.detail && (
+                      <span className={`block text-xs ${line.muted ? 'text-amber-700' : 'text-stone-500'}`}>
+                        {line.detail}
+                      </span>
+                    )}
                   </span>
-                  <span className="shrink-0 font-semibold text-stone-800">{line.points >= 0 ? `+${line.points}` : line.points}</span>
+                  <span className={`shrink-0 font-semibold ${line.muted ? 'text-stone-400' : 'text-stone-800'}`}>
+                    {line.muted ? '0' : line.points >= 0 ? `+${line.points}` : line.points}
+                  </span>
                 </li>
               ))}
             </ul>
