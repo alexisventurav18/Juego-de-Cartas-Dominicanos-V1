@@ -54,13 +54,13 @@ export interface CasinoState {
 
 export type CasinoMove =
   | { type: 'play'; cardId: string; captureIds: string[] }
-  | { type: 'build'; cardId: string; kind: FormationKind; tableIds: string[] }
+  | { type: 'build'; cardId: string; kind: FormationKind; tableIds: string[]; mergeId?: string }
   | { type: 'raise'; cardId: string; buildId: string }
   | { type: 'convert'; cardId: string; buildId: string }
   | { type: 'expand'; cardId: string; buildId: string; tableIds: string[] }
   | { type: 'nextRound' };
 
-export function createCasinoGame(players: Player[]): CasinoState {
+export function createCasinoGame(players: Player[], dealer?: number): CasinoState {
   return dealRound({
     game: 'casino',
     phase: 'roundEnd',
@@ -74,12 +74,16 @@ export function createCasinoGame(players: Player[]): CasinoState {
     viraos: [0, 0],
     scores: [0, 0],
     turn: 0,
-    dealer: Math.floor(Math.random() * players.length),
+    dealer: dealer ?? Math.floor(Math.random() * players.length),
     roundNo: 0,
     lastCapturer: null,
     summary: null,
     winnerTeam: null,
   });
+}
+
+export function nextDealerSeat(state: CasinoState): number {
+  return (state.dealer + 1) % state.players.length;
 }
 
 function isScoringCard(card: Card): boolean {
@@ -211,6 +215,11 @@ function advanceTurn(state: CasinoState, seat: number): CasinoState {
   return finishRound(next);
 }
 
+function unmarkLastVirao(groups: CaptureGroup[]): CaptureGroup[] {
+  const index = groups.map((group) => group.virao).lastIndexOf(true);
+  return groups.map((group, i) => (i === index ? { ...group, virao: false } : group));
+}
+
 function collectTable(
   state: CasinoState,
   seat: number,
@@ -224,12 +233,18 @@ function collectTable(
   const roundOver = state.hands.every((hand) => hand.length === 0) && state.deck.length === 0;
   const virao = table.length === 0 && builds.length === 0 && !roundOver;
   const captured: [CaptureGroup[], CaptureGroup[]] = [[...state.captured[0]], [...state.captured[1]]];
-  captured[team] = [...captured[team], { cards, virao, pairsRank }];
   const viraos: [number, number] = [state.viraos[0], state.viraos[1]];
+  let viraoMark = false;
   if (virao) {
-    if (viraos[other] > 0) viraos[other] -= 1;
-    else viraos[team] += 1;
+    if (viraos[other] > 0) {
+      viraos[other] -= 1;
+      captured[other] = unmarkLastVirao(captured[other]);
+    } else {
+      viraos[team] += 1;
+      viraoMark = true;
+    }
   }
+  captured[team] = [...captured[team], { cards, virao: viraoMark, pairsRank }];
   return advanceTurn({ ...state, table, builds, captured, viraos, lastCapturer: seat }, seat);
 }
 
@@ -270,6 +285,7 @@ function buildCombination(
   card: Card,
   kind: FormationKind,
   tableIds: string[],
+  mergeId?: string,
 ): MoveResult<CasinoState> {
   const loose = state.table.filter((c) => tableIds.includes(c.id));
   if (loose.length === 0 || loose.length !== tableIds.length) {
@@ -281,12 +297,24 @@ function buildCombination(
       error: `Esa combinación no es válida: revisa las cartas elegidas y que te quede en mano una carta de su valor (no puede pasar de ${MAX_CAPTURE_VALUE}).`,
     };
   }
-  const build: Build = { id: `build-${state.buildSeq}`, kind, value, cards: [card, ...loose], owner: seat };
+  const merge = mergeId === undefined ? null : (state.table.find((c) => c.id === mergeId) ?? null);
+  if (mergeId !== undefined && (kind !== 'sum' || merge === null || merge.rank !== value || tableIds.includes(mergeId))) {
+    return { error: 'Esa carta de la mesa no puede unirse a esta sumatoria.' };
+  }
+  const merged = merge ? [merge] : [];
+  const removedIds = [...tableIds, ...merged.map((c) => c.id)];
+  const build: Build = {
+    id: `build-${state.buildSeq}`,
+    kind: merged.length > 0 ? 'pairs' : kind,
+    value,
+    cards: [card, ...loose, ...merged],
+    owner: seat,
+  };
   return {
     state: advanceTurn(
       {
         ...state,
-        table: state.table.filter((c) => !tableIds.includes(c.id)),
+        table: state.table.filter((c) => !removedIds.includes(c.id)),
         builds: [...state.builds, build],
         buildSeq: state.buildSeq + 1,
       },
@@ -325,7 +353,7 @@ function convertCombination(
   if (!build) return { error: 'Esa combinación ya no está en la mesa.' };
   if (convertValue(card, build, state.hands[seat]) === null) {
     return {
-      error: 'No puedes convertir esta sumatoria en pares: necesitas una carta de su mismo valor y que te quede en mano otra de ese valor.',
+      error: 'No puedes sumar esta carta al par: necesitas una carta de su mismo valor y que te quede en mano otra de ese valor.',
     };
   }
   const builds = state.builds.map((b) =>
@@ -390,6 +418,14 @@ export function formationMoves(state: CasinoState, seat: number): CasinoMove[] {
           moves.push({ type: 'build', cardId: card.id, kind, tableIds });
         }
       }
+      const sum = formationValue('sum', card, loose, rest);
+      if (sum !== null) {
+        for (const merge of state.table) {
+          if (merge.rank === sum && !tableIds.includes(merge.id)) {
+            moves.push({ type: 'build', cardId: card.id, kind: 'sum', tableIds, mergeId: merge.id });
+          }
+        }
+      }
       for (const build of state.builds) {
         if (expansionValue(card, build, loose, rest) !== null) {
           moves.push({ type: 'expand', cardId: card.id, buildId: build.id, tableIds });
@@ -424,6 +460,7 @@ export function applyCasinoMove(
 ): MoveResult<CasinoState> {
   if (move.type === 'nextRound') {
     if (state.phase !== 'roundEnd') return { error: 'La ronda todavía no ha terminado.' };
+    if (seat !== nextDealerSeat(state)) return { error: 'Solo el repartidor puede iniciar la siguiente ronda.' };
     return { state: dealRound(state) };
   }
 
@@ -438,7 +475,7 @@ export function applyCasinoMove(
   const next: CasinoState = { ...state, hands };
 
   if (move.type === 'play') return playCard(next, seat, card, move.captureIds, forced);
-  if (move.type === 'build') return buildCombination(next, seat, card, move.kind, move.tableIds);
+  if (move.type === 'build') return buildCombination(next, seat, card, move.kind, move.tableIds, move.mergeId);
   if (move.type === 'raise') return raiseCombination(next, seat, card, move.buildId);
   if (move.type === 'convert') return convertCombination(next, seat, card, move.buildId);
   return expandCombination(next, seat, card, move.buildId, move.tableIds);

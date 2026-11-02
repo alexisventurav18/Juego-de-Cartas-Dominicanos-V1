@@ -7,9 +7,10 @@ interface RoundResultPanelProps {
   totals: [number, number];
   teamNames: [string, string];
   onNextRound?: () => void;
+  waitingFor?: string;
 }
 
-export default function RoundResultPanel({ title, lines, totals, teamNames, onNextRound }: RoundResultPanelProps) {
+export default function RoundResultPanel({ title, lines, totals, teamNames, onNextRound, waitingFor }: RoundResultPanelProps) {
   return (
     <section className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-md">
       <div className="flex items-center gap-3">
@@ -47,9 +48,12 @@ export default function RoundResultPanel({ title, lines, totals, teamNames, onNe
             onClick={onNextRound}
             className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800"
           >
-            Repartir la siguiente ronda
+            Repartir cartas y continuar
           </button>
         </div>
+      )}
+      {!onNextRound && waitingFor && (
+        <p className="text-center text-sm text-stone-500">Esperando a {waitingFor} para repartir la siguiente ronda.</p>
       )}
     </section>
   );

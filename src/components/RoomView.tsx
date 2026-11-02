@@ -12,6 +12,7 @@ import WaitingRoom from './WaitingRoom';
 import CasinoTable from './CasinoTable';
 import CinquilloTable from './CinquilloTable';
 import BurakoTable from './BurakoTable';
+import CoinToss from './CoinToss';
 
 interface RoomViewProps {
   roomId: string;
@@ -30,6 +31,7 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [coinOpen, setCoinOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -125,7 +127,17 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
       setNotice(`Este juego necesita ${GAMES[room.game].playerCountLabel.toLowerCase()}.`);
       return;
     }
+    if (room.game === 'casino' && room.players.some(isBotPlayer)) {
+      setCoinOpen(true);
+      return;
+    }
     void submit({ state: createGameState(room.game, room.players) });
+  };
+
+  const startSoloGame = (humanWonToss: boolean) => {
+    setCoinOpen(false);
+    const dealer = humanWonToss ? room.players.findIndex(isBotPlayer) : seat;
+    void submit({ state: createGameState(room.game, room.players, dealer) });
   };
 
   const state = room.state;
@@ -153,6 +165,8 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
           {notice}
         </p>
       )}
+
+      {coinOpen && <CoinToss onDone={startSoloGame} />}
 
       {state === null || room.status === 'waiting' ? (
         <WaitingRoom room={room} myId={playerId} busy={saving} onStart={startGame} />

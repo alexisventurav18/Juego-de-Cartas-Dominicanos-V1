@@ -1,4 +1,4 @@
-import { createGameState, createSoloPlayers, GAMES, type GameState } from '@/games';
+import { createSoloPlayers, GAMES, type GameState } from '@/games';
 import type { GameId, Player } from '@/games/shared';
 import { supabase } from './supabase';
 
@@ -49,7 +49,7 @@ export function createRoom(game: GameId, player: Player): Promise<RoomRow> {
 
 export function createSoloRoom(game: GameId, player: Player): Promise<RoomRow> {
   const players = createSoloPlayers(game, player);
-  return insertRoom({ game, status: 'playing', players, state: createGameState(game, players) });
+  return insertRoom({ game, status: 'waiting', players, state: null });
 }
 
 export async function fetchRoom(roomId: string): Promise<RoomRow | null> {

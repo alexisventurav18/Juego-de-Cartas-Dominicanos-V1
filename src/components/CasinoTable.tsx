@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CASINO_TARGET, type CasinoMove, type CasinoState, isCaptureForced } from '@/games/casino';
+import { CASINO_TARGET, type CasinoMove, type CasinoState, isCaptureForced, nextDealerSeat } from '@/games/casino';
 import {
   canCapture,
   convertValue,
@@ -9,7 +9,7 @@ import {
   raiseValue,
   tableItems,
 } from '@/games/casinoCapture';
-import { teamName, teamOf } from '@/games/shared';
+import { isBotPlayer, teamName, teamOf } from '@/games/shared';
 import CapturedPile from './CapturedPile';
 import DealerReveal from './DealerReveal';
 import FaceDownStack from './FaceDownStack';
@@ -19,6 +19,7 @@ import ScoreBoard from './ScoreBoard';
 import SeatBar from './SeatBar';
 import TableBuild from './TableBuild';
 import { useDealIntro } from './useDealIntro';
+import VictoryCelebration from './VictoryCelebration';
 
 interface CasinoTableProps {
   state: CasinoState;
@@ -30,7 +31,8 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const [cardId, setCardId] = useState<string | null>(null);
   const [tableIds, setTableIds] = useState<string[]>([]);
   const deal = useDealIntro(state.roundNo, state.players.length);
-  const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1);
+  const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1 && !state.players.some(isBotPlayer));
+  const [victoryDismissedRound, setVictoryDismissedRound] = useState<number | null>(null);
 
   const myTurn = state.phase === 'playing' && state.turn === seat && !deal.dealing;
   const card = state.hands[seat].find((c) => c.id === cardId) ?? null;
@@ -57,6 +59,11 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
     canFormCombination && selectedBuilds.length === 1 && selectedLoose.length > 0 ? selectedBuilds[0] : null;
   const expandedValue = expandTarget && card ? expansionValue(card, expandTarget, selectedLoose, handAfter) : null;
   const convertedValue = raiseTarget && card ? convertValue(card, raiseTarget, handAfter) : null;
+  const mergeCard =
+    sumValue !== null ? (state.table.find((c) => c.rank === sumValue && !tableIds.includes(c.id)) ?? null) : null;
+  const nextDealer = nextDealerSeat(state);
+  const showVictory =
+    state.phase === 'gameOver' && state.winnerTeam === teamOf(seat) && victoryDismissedRound !== state.roundNo;
 
   const reset = () => {
     setCardId(null);
@@ -114,6 +121,18 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
     if (card && raiseTarget) submit({ type: 'convert', cardId: card.id, buildId: raiseTarget.id });
   };
 
+  const buildSumAndPairs = () => {
+    if (card && mergeCard) {
+      submit({
+        type: 'build',
+        cardId: card.id,
+        kind: 'sum',
+        tableIds: selectedLoose.map((c) => c.id),
+        mergeId: mergeCard.id,
+      });
+    }
+  };
+
   const hint = (() => {
     if (state.phase !== 'playing') return '';
     if (deal.dealing) {
@@ -128,7 +147,14 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
     if (captureReady) return 'Listo: te llevas las cartas seleccionadas.';
     if (expandedValue !== null) return `Puedes ampliar la combinación a ${expandedValue} con tu carta y las cartas sueltas.`;
     if (raisedValue !== null) return `Puedes subir la combinación a ${raisedValue} con tu carta.`;
-    if (convertedValue !== null) return `Puedes convertir la sumatoria en pares de ${convertedValue}.`;
+    if (convertedValue !== null) {
+      return raiseTarget?.kind === 'pairs'
+        ? `Puedes añadir una carta de ${convertedValue} a tus pares.`
+        : `Puedes convertir la sumatoria en pares de ${convertedValue}.`;
+    }
+    if (sumValue !== null && mergeCard) {
+      return `Puedes formar una sumatoria de ${sumValue} y unirla a la carta ${sumValue} de la mesa para hacer pares.`;
+    }
     if (sumValue !== null) return `Puedes formar una sumatoria de ${sumValue}.`;
     if (pairsValue !== null) return `Puedes formar pares de ${pairsValue}.`;
     if (selectedItems.length > 0) return 'Esa selección no es válida con tu carta.';
@@ -145,6 +171,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
       {dealerOpen && (
         <DealerReveal players={state.players} dealer={state.dealer} onDone={() => setDealerOpen(false)} />
       )}
+      {showVictory && <VictoryCelebration onContinue={() => setVictoryDismissedRound(state.roundNo)} />}
       <ScoreBoard
         teams={[0, 1].map((team) => {
           const capturedCount = state.captured[team].reduce((sum, group) => sum + group.cards.length, 0);
@@ -223,7 +250,8 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
           lines={state.summary.lines}
           totals={state.summary.totals}
           teamNames={[teamName(state.players, 0), teamName(state.players, 1)]}
-          onNextRound={state.phase === 'roundEnd' ? () => onMove({ type: 'nextRound' }) : undefined}
+          onNextRound={state.phase === 'roundEnd' && seat === nextDealer ? () => onMove({ type: 'nextRound' }) : undefined}
+          waitingFor={state.phase === 'roundEnd' ? state.players[nextDealer].name : undefined}
         />
       )}
 
@@ -270,7 +298,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 disabled={convertedValue === null}
                 className="rounded-xl border border-amber-500 bg-white px-5 py-2.5 text-sm font-medium text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400"
               >
-                Convertir en pares
+                {raiseTarget?.kind === 'pairs' ? 'Ampliar pares' : 'Convertir en pares'}
               </button>
               <button
                 type="button"
@@ -280,6 +308,15 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
               >
                 Formar sumatoria
               </button>
+              {mergeCard && (
+                <button
+                  type="button"
+                  onClick={buildSumAndPairs}
+                  className="rounded-xl border border-emerald-600 bg-white px-5 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50"
+                >
+                  Sumatoria y pares
+                </button>
+              )}
               <button
                 type="button"
                 onClick={buildPairs}

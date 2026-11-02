@@ -168,6 +168,6 @@ export function expansionValue(
 }
 
 export function convertValue(card: Card, build: Build, handAfter: Card[]): number | null {
-  if (build.kind !== 'sum' || card.rank !== build.value) return null;
+  if (card.rank !== build.value) return null;
   return handCanCapture(handAfter, build.value) ? build.value : null;
 }

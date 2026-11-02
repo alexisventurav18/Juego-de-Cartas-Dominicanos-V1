@@ -1,5 +1,5 @@
 import { AMERICAN_RANKS, type Card } from './cards';
-import { applyCasinoMove, type CasinoMove, type CasinoState, formationMoves } from './casino';
+import { applyCasinoMove, type CasinoMove, type CasinoState, formationMoves, nextDealerSeat } from './casino';
 import { captureOptions, type TableItem, tableItems } from './casinoCapture';
 import { applyCinquilloMove, type CinquilloState, isPlayable } from './cinquillo';
 import { applyBurakoMove, type BurakoState, cardPoints, isValidMeld, type Meld } from './burako';
@@ -24,9 +24,12 @@ export function botStep(state: GameState): BotStep | null {
     return { result: cinquilloBotMove(state), delayMs: BOT_MOVE_MS };
   }
   if (state.phase === 'roundEnd') {
-    const result = state.game === 'casino'
-      ? applyCasinoMove(state, 0, { type: 'nextRound' })
-      : applyBurakoMove(state, 0, { type: 'nextRound' });
+    if (state.game === 'casino') {
+      const dealerSeat = nextDealerSeat(state);
+      if (!isBotPlayer(state.players[dealerSeat])) return null;
+      return { result: applyCasinoMove(state, dealerSeat, { type: 'nextRound' }), delayMs: ROUND_PAUSE_MS };
+    }
+    const result = applyBurakoMove(state, 0, { type: 'nextRound' });
     return { result, delayMs: state.summary ? ROUND_PAUSE_MS : BOT_MOVE_MS };
   }
   if (!isBotTurn(state)) return null;
