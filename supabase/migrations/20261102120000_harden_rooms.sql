@@ -16,14 +16,13 @@
 - Índice por fecha para poder limpiar salas viejas.
 - Función `purge_stale_rooms(days)` para borrar salas abandonadas (ejecútala a mano o con pg_cron).
 
-3. Límite conocido
-- `state` sigue guardando las manos de todos los jugadores y es legible por cualquiera que
-  tenga el id de la sala. Ocultar las manos exige validar las jugadas en el servidor
-  (Edge Function) y entregar a cada jugador solo su vista. Ver README del proyecto.
+3. Nota
+- Las manos dejan de ser públicas en la migración siguiente (20261102130000_server_authoritative_rooms).
 */
 
 CREATE OR REPLACE FUNCTION rooms_guard() RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
   IF NEW.id IS DISTINCT FROM OLD.id
