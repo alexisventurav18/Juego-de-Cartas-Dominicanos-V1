@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Card } from '@/games/cards';
 import { rankName } from '@/games/cards';
 import type { CaptureGroup } from '@/games/casino';
@@ -13,6 +14,8 @@ const STEP_X = 6;
 const STEP_Y = 4;
 
 export default function CapturedPile({ title, groups }: CapturedPileProps) {
+  const previousSignature = useRef<string | null>(null);
+  const [animatedGroup, setAnimatedGroup] = useState<{ index: number; kind: 'capture' | 'loss' } | null>(null);
   const cardCount = groups.reduce((sum, group) => sum + group.cards.length, 0);
   const hiddenCount = groups
     .filter((group) => !group.virao)
@@ -21,6 +24,30 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
   const pairs = groups.flatMap((group) =>
     group.pairsRank === null ? [] : [{ rank: group.pairsRank, size: group.cards.length }],
   );
+  const signature = groups.map((group) => `${group.cards.map((card) => card.id).join(',')}:${group.virao ? 'v' : 'n'}`).join('|');
+  const animatedHiddenGroup = animatedGroup !== null && !groups[animatedGroup.index]?.virao;
+
+  useEffect(() => {
+    const previous = previousSignature.current;
+    if (previous !== null) {
+      const previousGroups = previous.split('|');
+      if (groups.length > previousGroups.length) {
+        setAnimatedGroup({ index: groups.length - 1, kind: 'capture' });
+      } else {
+        const lostVirao = groups.findIndex(
+          (group, index) => previousGroups[index]?.endsWith(':v') && !group.virao,
+        );
+        if (lostVirao >= 0) setAnimatedGroup({ index: lostVirao, kind: 'loss' });
+      }
+    }
+    previousSignature.current = signature;
+  }, [signature, groups]);
+
+  useEffect(() => {
+    if (!animatedGroup) return;
+    const timer = window.setTimeout(() => setAnimatedGroup(null), 900);
+    return () => window.clearTimeout(timer);
+  }, [animatedGroup]);
 
   return (
     <div className="space-y-3">
@@ -33,17 +60,38 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-4">
             {hiddenCount > 0 && (
-              <div className="space-y-2">
+              <div
+                className={`space-y-2 ${
+                  animatedHiddenGroup && animatedGroup?.kind === 'capture'
+                    ? 'animate-capture-stack'
+                    : animatedHiddenGroup && animatedGroup?.kind === 'loss'
+                      ? 'animate-virao-loss'
+                      : ''
+                }`}
+              >
                 <FaceDownStack count={hiddenCount} size="sm" />
                 <p className="text-xs text-stone-500">{hiddenCount} boca abajo</p>
               </div>
             )}
-            {viraos.map((group, i) => (
-              <div key={i} className="space-y-2">
-                <CaptureStack cards={group.cards} />
-                <p className="text-xs font-medium text-amber-700">Virao</p>
-              </div>
-            ))}
+            {viraos.map((group, i) => {
+              const groupIndex = groups.indexOf(group);
+              const animation = animatedGroup?.index === groupIndex ? animatedGroup.kind : null;
+              return (
+                <div
+                  key={i}
+                  className={`space-y-2 ${
+                    animation === 'capture'
+                      ? group.virao
+                        ? 'animate-virao-reveal'
+                        : 'animate-capture-stack'
+                      : ''
+                  }`}
+                >
+                  <CaptureStack cards={group.cards} />
+                  <p className="text-xs font-medium text-amber-700">Virao</p>
+                </div>
+              );
+            })}
           </div>
           {pairs.length > 0 && (
             <ul className="space-y-1">

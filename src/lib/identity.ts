@@ -46,6 +46,20 @@ function randomSecret(): string {
 let sessionPlayerKey: string | null = null;
 
 /**
+ * Starts a fresh local player identity. This is useful on shared devices and
+ * during local multiplayer tests, where two browser profiles must not reuse
+ * the same player credentials.
+ */
+export function resetPlayerIdentity(): void {
+  sessionPlayerId = null;
+  sessionPlayerKey = null;
+  writeStorage(PLAYER_ID_KEY, null);
+  writeStorage(PLAYER_SECRET_KEY, null);
+  writeStorage(PLAYER_NAME_KEY, null);
+  writeStorage(ROOM_ID_KEY, null);
+}
+
+/**
  * Clave secreta del jugador: demuestra ante el servidor que eres tú (el id es público).
  * Nunca se muestra ni se comparte; el servidor solo guarda su hash.
  */

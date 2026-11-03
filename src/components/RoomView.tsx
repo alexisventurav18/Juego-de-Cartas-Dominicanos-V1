@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, RotateCcw, Wifi, WifiOff } from 'lucide-react';
 import { canStartGame, GAMES, isGameFinished } from '@/games';
 import type { CasinoMove } from '@/games/casino';
 import type { CinquilloMove } from '@/games/cinquillo';
@@ -7,7 +7,7 @@ import type { BurakoMove } from '@/games/burako';
 import { botTickDelay } from '@/games/bots';
 import { isBotPlayer } from '@/games/shared';
 import { getPlayerId } from '@/lib/identity';
-import { botTick, fetchRoom, requestStart, type RoomRow, sendMove, subscribeToRoom } from '@/lib/rooms';
+import { botTick, fetchRoom, requestStart, type RoomConnectionStatus, type RoomRow, sendMove, subscribeToRoom } from '@/lib/rooms';
 import WaitingRoom from './WaitingRoom';
 import CasinoTable from './CasinoTable';
 import CinquilloTable from './CinquilloTable';
@@ -33,6 +33,8 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [coinOpen, setCoinOpen] = useState(false);
+  const [connection, setConnection] = useState<RoomConnectionStatus>('connecting');
+  const [retryToken, setRetryToken] = useState(0);
   const versionRef = useRef(-1);
 
   const acceptRow = useCallback((row: RoomRow) => {
@@ -47,13 +49,18 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
     let active = true;
 
     const refresh = () => {
+      setConnection('connecting');
       fetchRoom(roomId)
         .then((row) => {
-          if (active) acceptRow(row);
+          if (!active) return;
+          setLoadError(null);
+          setConnection('connected');
+          acceptRow(row);
         })
         .catch((err: unknown) => {
           if (!active) return;
           const message = errorMessage(err);
+          setConnection('offline');
           if (FATAL_MESSAGES.includes(message) || versionRef.current === -1) setLoadError(message);
           else setNotice(message);
         });
@@ -62,14 +69,21 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
     refresh();
     const unsubscribe = subscribeToRoom(roomId, (version) => {
       if (version > versionRef.current) refresh();
-    });
+    }, setConnection);
+    const refreshTimer = window.setInterval(refresh, 15000);
+    const handleOffline = () => setConnection('offline');
     window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    window.addEventListener('offline', handleOffline);
     return () => {
       active = false;
       unsubscribe();
+      window.clearInterval(refreshTimer);
       window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('offline', handleOffline);
     };
-  }, [roomId, acceptRow]);
+  }, [roomId, acceptRow, retryToken]);
 
   useEffect(() => {
     if (!notice) return;
@@ -90,7 +104,18 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   }, [room, playerId, acceptRow]);
 
   if (loadError) {
-    return <StatusMessage message={loadError} onLeave={onLeave} />;
+    return (
+      <StatusMessage
+        message={loadError}
+        onRetry={() => {
+          versionRef.current = -1;
+          setRoom(null);
+          setLoadError(null);
+          setRetryToken((value) => value + 1);
+        }}
+        onLeave={onLeave}
+      />
+    );
   }
   if (!room) {
     return <p className="py-20 text-center text-sm text-stone-500">Cargando sala...</p>;
@@ -151,6 +176,23 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
         </div>
       </header>
 
+      <div
+        role="status"
+        aria-live="polite"
+        className={`mb-5 flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-medium ${
+          connection === 'connected'
+            ? 'bg-emerald-50 text-emerald-700'
+            : connection === 'offline'
+              ? 'bg-rose-50 text-rose-700'
+              : 'bg-amber-50 text-amber-700'
+        }`}
+      >
+        {connection === 'connected' && <Wifi className="h-3.5 w-3.5" />}
+        {connection === 'offline' && <WifiOff className="h-3.5 w-3.5" />}
+        {connection === 'connecting' && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}
+        {connection === 'connected' ? 'Conectado al servidor' : connection === 'offline' ? 'Sin conexión. Reintentando...' : 'Conectando al servidor...'}
+      </div>
+
       {notice && (
         <p role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700 shadow-sm">
           {notice}
@@ -190,17 +232,28 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   );
 }
 
-function StatusMessage({ message, onLeave }: { message: string; onLeave: () => void }) {
+function StatusMessage({ message, onRetry, onLeave }: { message: string; onRetry?: () => void; onLeave: () => void }) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-20 text-center">
       <p className="text-stone-700">{message}</p>
-      <button
-        type="button"
-        onClick={onLeave}
-        className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
-      >
-        Volver al inicio
-      </button>
+      <div className="flex flex-wrap justify-center gap-3">
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
+          >
+            Reintentar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onLeave}
+          className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+        >
+          Volver al inicio
+        </button>
+      </div>
     </div>
   );
 }

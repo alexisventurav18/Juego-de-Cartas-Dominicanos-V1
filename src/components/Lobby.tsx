@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Bot, ChevronDown, DoorOpen, Spade, Users } from 'lucide-react';
+import { Bot, ChevronDown, DoorOpen, RefreshCw, Spade, Users } from 'lucide-react';
 import { GAMES } from '@/games';
 import type { GameId } from '@/games/shared';
 import { createRoom, createSoloRoom, joinRoom } from '@/lib/rooms';
-import { getPlayerId, getStoredName, storeName } from '@/lib/identity';
+import { getPlayerId, getStoredName, resetPlayerIdentity, storeName } from '@/lib/identity';
 
 interface LobbyProps {
   onEnter: (roomId: string) => void;
@@ -53,6 +53,13 @@ export default function Lobby({ onEnter }: LobbyProps) {
       return;
     }
     void run('join', async (player) => (await joinRoom(code, player)).id);
+  };
+
+  const changePlayer = () => {
+    resetPlayerIdentity();
+    setName('');
+    setCode('');
+    setError(null);
   };
 
   return (
@@ -141,7 +148,19 @@ export default function Lobby({ onEnter }: LobbyProps) {
             <p className="mt-1 text-sm text-stone-500">Recibirás un código para que tus amigos entren.</p>
           </div>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-stone-700">Tu nombre</span>
+            <span className="flex items-center justify-between text-sm font-medium text-stone-700">
+              <span>Tu nombre</span>
+              {name.trim() && (
+                <button
+                  type="button"
+                  onClick={changePlayer}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Cambiar jugador
+                </button>
+              )}
+            </span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 24))}
@@ -165,8 +184,17 @@ export default function Lobby({ onEnter }: LobbyProps) {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Bot className="h-4 w-4" />
-            {busy === 'solo' ? 'Preparando mesa...' : 'Jugar solo contra bots'}
+            {busy === 'solo'
+              ? 'Preparando mesa...'
+              : game === 'casino'
+                ? 'Jugar Casino en equipo con bots'
+                : 'Jugar contra bots'}
           </button>
+          <p className="-mt-2 text-center text-xs leading-relaxed text-stone-500">
+            {game === 'casino'
+              ? 'Juegas en pareja con un bot contra otra pareja de bots. Sus nombres se asignan al azar.'
+              : `Completarás la mesa con ${info.soloPlayerCount - 1} bot${info.soloPlayerCount === 2 ? '' : 's'}.`}
+          </p>
         </div>
 
         <form onSubmit={handleJoin} className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">

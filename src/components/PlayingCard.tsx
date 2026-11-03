@@ -20,22 +20,22 @@ interface PlayingCardProps {
 export const SIZE_CLASS: Record<CardSize, string> = {
   sm: 'h-16 w-12 rounded-md sm:h-20 sm:w-14',
   md: 'h-32 w-24 rounded-xl sm:h-40 sm:w-28',
-  lg: 'h-40 w-28 rounded-xl sm:h-52 sm:w-36',
-  xl: 'h-44 w-32 rounded-xl sm:h-60 sm:w-40',
+  lg: 'h-32 w-24 rounded-xl sm:h-52 sm:w-36',
+  xl: 'h-36 w-24 rounded-xl sm:h-60 sm:w-40',
 };
 
 const RANK_CLASS: Record<CardSize, string> = {
   sm: 'text-sm',
   md: 'text-base',
   lg: 'text-lg',
-  xl: 'text-xl',
+  xl: 'text-lg sm:text-xl',
 };
 
 const SUIT_CLASS: Record<CardSize, string> = {
   sm: 'text-xl leading-none',
   md: 'text-3xl leading-none',
   lg: 'text-5xl leading-none',
-  xl: 'text-6xl leading-none',
+  xl: 'text-5xl leading-none sm:text-6xl',
 };
 
 const JOKER_CLASS: Record<CardSize, string> = {
@@ -97,7 +97,7 @@ export default function PlayingCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`shrink-0 transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`min-h-11 shrink-0 touch-manipulation transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-60 ${
         disabled ? '' : 'hover:-translate-y-1'
       } ${stateClass}`}
     >

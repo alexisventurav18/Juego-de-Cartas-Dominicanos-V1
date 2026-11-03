@@ -115,14 +115,23 @@ export function handCanCapture(hand: Card[], value: number): boolean {
   return hand.some((card) => captureValues(card).includes(value));
 }
 
-function sumRanks(cards: Card[]): number {
-  return cards.reduce((sum, c) => sum + c.rank, 0);
+function possibleTotals(cards: Card[]): number[] {
+  let totals = [0];
+  for (const card of cards) {
+    const next = new Set<number>();
+    for (const total of totals) {
+      for (const value of captureValues(card)) {
+        if (total + value <= MAX_CAPTURE_VALUE) next.add(total + value);
+      }
+    }
+    totals = [...next];
+  }
+  return totals;
 }
 
 function sumValue(card: Card, looseCards: Card[]): number | null {
   if (looseCards.length === 0) return null;
-  const total = card.rank + sumRanks(looseCards);
-  return total <= MAX_CAPTURE_VALUE ? total : null;
+  return possibleTotals([card, ...looseCards])[0] ?? null;
 }
 
 function canSplitIntoGroups(ranks: number[], target: number, groups: number): boolean {
@@ -145,12 +154,18 @@ function canSplitIntoGroups(ranks: number[], target: number, groups: number): bo
 
 function pairsValue(card: Card, looseCards: Card[]): number | null {
   if (looseCards.length === 0) return null;
-  const ranks = [card.rank, ...looseCards.map((c) => c.rank)];
-  const total = sumRanks([card, ...looseCards]);
-  for (let value = 2; value <= MAX_CAPTURE_VALUE; value++) {
-    if (total % value !== 0) continue;
-    const groups = total / value;
-    if (groups >= 2 && canSplitIntoGroups(ranks, value, groups)) return value;
+  const cards = [card, ...looseCards];
+  const assignments = cards.reduce<number[][]>(
+    (current, currentCard) => current.flatMap((values) => captureValues(currentCard).map((value) => [...values, value])),
+    [[]],
+  );
+  for (const values of assignments) {
+    const total = values.reduce((sum, value) => sum + value, 0);
+    for (let value = 2; value <= MAX_CAPTURE_VALUE; value++) {
+      if (total % value !== 0) continue;
+      const groups = total / value;
+      if (groups >= 2 && canSplitIntoGroups(values, value, groups)) return value;
+    }
   }
   return null;
 }
@@ -167,8 +182,9 @@ export function formationValue(
 
 export function raiseValue(card: Card, build: Build, handAfter: Card[]): number | null {
   if (build.kind === 'pairs') return null;
-  const value = build.value + card.rank;
-  return value <= MAX_CAPTURE_VALUE && handCanCapture(handAfter, value) ? value : null;
+  return possibleTotals([card]).map((value) => build.value + value).find(
+    (value) => value <= MAX_CAPTURE_VALUE && handCanCapture(handAfter, value),
+  ) ?? null;
 }
 
 export function expansionValue(
@@ -178,11 +194,12 @@ export function expansionValue(
   handAfter: Card[],
 ): number | null {
   if (build.kind === 'pairs' || looseCards.length === 0) return null;
-  const value = build.value + card.rank + sumRanks(looseCards);
-  return value <= MAX_CAPTURE_VALUE && handCanCapture(handAfter, value) ? value : null;
+  return possibleTotals([card, ...looseCards]).map((value) => build.value + value).find(
+    (value) => value <= MAX_CAPTURE_VALUE && handCanCapture(handAfter, value),
+  ) ?? null;
 }
 
 export function convertValue(card: Card, build: Build, handAfter: Card[]): number | null {
-  if (card.rank !== build.value) return null;
+  if (!captureValues(card).includes(build.value)) return null;
   return handCanCapture(handAfter, build.value) ? build.value : null;
 }

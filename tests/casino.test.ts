@@ -11,7 +11,17 @@ import {
   scoreRound,
 } from '../src/games/casino';
 import { casinoBotMove } from '../src/games/casinoBot';
-import { captureOptions, isValidCapture, pairsRankOf, tableItems } from '../src/games/casinoCapture';
+import {
+  captureOptions,
+  convertValue,
+  expansionValue,
+  formationValue,
+  isValidCapture,
+  pairsRankOf,
+  raiseValue,
+  tableItems,
+  type Build,
+} from '../src/games/casinoCapture';
 import type { Player } from '../src/games/shared';
 
 const deck = americanDeck();
@@ -123,6 +133,151 @@ describe('captura con varias combinaciones', () => {
 
   it('detecta las dos parejas de 12 cuando la mesa se reparte en dos grupos', () => {
     assert.equal(pairsRankOf(queen, tableItems(loose, [])), 12);
+  });
+});
+
+describe('sumatorias y formación de pares', () => {
+  const makeState = (hand: Card[], table: Card[], builds: Build[] = []): CasinoState => ({
+    game: 'casino',
+    phase: 'playing',
+    players: players(2),
+    deck: [byId('picas-13')],
+    hands: [hand, [byId('corazones-13')]],
+    table,
+    builds,
+    buildSeq: builds.length,
+    captured: [[], []],
+    viraos: [0, 0],
+    scores: [0, 0],
+    turn: 0,
+    dealer: 1,
+    roundNo: 1,
+    lastCapturer: null,
+    lastCapture: null,
+    summary: null,
+    winnerTeam: null,
+  });
+
+  it('forma una sumatoria con una combinación de cartas sueltas', () => {
+    const value = formationValue('sum', byId('corazones-5'), [byId('diamantes-2'), byId('treboles-3')], [byId('picas-10')]);
+    assert.equal(value, 10);
+
+    const result = applyCasinoMove(
+      makeState([byId('corazones-5'), byId('picas-10')], [byId('diamantes-2'), byId('treboles-3')]),
+      0,
+      { type: 'build', cardId: 'corazones-5', kind: 'sum', tableIds: ['diamantes-2', 'treboles-3'] },
+    );
+    assert.ok('state' in result);
+    if ('state' in result) {
+      assert.deepEqual(result.state.builds[0].value, 10);
+      assert.equal(result.state.builds[0].kind, 'sum');
+      assert.equal(result.state.table.length, 0);
+    }
+  });
+
+  it('forma tres pares del mismo valor usando todas las cartas elegidas', () => {
+    const handCard = byId('corazones-12');
+    const loose = [byId('diamantes-7'), byId('treboles-5'), byId('picas-4'), byId('corazones-8')];
+    assert.equal(formationValue('pairs', handCard, loose, [byId('diamantes-12')]), 12);
+
+    const result = applyCasinoMove(
+      makeState([handCard, byId('diamantes-12')], loose),
+      0,
+      { type: 'build', cardId: handCard.id, kind: 'pairs', tableIds: loose.map((card) => card.id) },
+    );
+    assert.ok('state' in result);
+    if ('state' in result) {
+      assert.equal(result.state.builds[0].kind, 'pairs');
+      assert.equal(result.state.builds[0].value, 12);
+      assert.equal(result.state.builds[0].cards.length, 5);
+    }
+  });
+
+  it('permite usar un As como 14 al formar pares múltiples', () => {
+    const played = byId('corazones-1');
+    const loose = [byId('diamantes-13'), byId('treboles-1')];
+    assert.equal(formationValue('pairs', played, loose, [byId('picas-1')]), 14);
+  });
+
+  it('acepta todos los valores de sumatoria del 2 al 14', () => {
+    for (let target = 2; target <= 14; target++) {
+      const looseRank = target - 1;
+      const loose = byId(`diamantes-${looseRank}`);
+      const handTarget = target === 14 ? byId('treboles-1') : byId(`treboles-${target}`);
+      const value = formationValue('sum', byId('corazones-1'), [loose], [handTarget]);
+      assert.equal(value, target, `la sumatoria debe poder formar ${target}`);
+    }
+  });
+
+  it('acepta dos pares para cada valor del 2 al 14', () => {
+    for (let target = 2; target <= 13; target++) {
+      const value = formationValue(
+        'pairs',
+        byId(`corazones-${target}`),
+        [byId(`diamantes-${target}`)],
+        [byId(`treboles-${target}`)],
+      );
+      assert.equal(value, target, `los pares deben poder formar ${target}`);
+    }
+    assert.equal(
+      formationValue('pairs', byId('corazones-1'), [byId('diamantes-1')], [byId('treboles-1')]),
+      14,
+      'los Ases deben poder formar pares de 14',
+    );
+  });
+
+  it('une una sumatoria a una carta del mismo valor para convertirla en pares', () => {
+    const result = applyCasinoMove(
+      makeState(
+        [byId('corazones-5'), byId('picas-10')],
+        [byId('diamantes-2'), byId('treboles-3'), byId('corazones-10')],
+      ),
+      0,
+      {
+        type: 'build',
+        cardId: 'corazones-5',
+        kind: 'sum',
+        tableIds: ['diamantes-2', 'treboles-3'],
+        mergeId: 'corazones-10',
+      },
+    );
+    assert.ok('state' in result);
+    if ('state' in result) {
+      assert.equal(result.state.builds[0].kind, 'pairs');
+      assert.equal(result.state.builds[0].value, 10);
+      assert.equal(result.state.table.length, 0);
+    }
+  });
+
+  it('permite subir una sumatoria, convertirla en pares y ampliarla con cartas sueltas', () => {
+    const build: Build = { id: 'build-0', kind: 'sum', value: 5, cards: [byId('diamantes-2'), byId('treboles-3')], owner: 0 };
+    assert.equal(raiseValue(byId('corazones-4'), build, [byId('picas-9')]), 9);
+    assert.equal(convertValue(byId('corazones-5'), build, [byId('picas-5')]), 5);
+    assert.equal(expansionValue(byId('corazones-4'), build, [byId('picas-1')], [byId('diamantes-10')]), 10);
+
+    const raised = applyCasinoMove(
+      makeState([byId('corazones-4'), byId('picas-9')], [], [build]),
+      0,
+      { type: 'raise', cardId: 'corazones-4', buildId: 'build-0' },
+    );
+    assert.ok('state' in raised);
+    if ('state' in raised) assert.equal(raised.state.builds[0].value, 9);
+
+    const converted = applyCasinoMove(
+      makeState([byId('corazones-5'), byId('picas-5')], [], [build]),
+      0,
+      { type: 'convert', cardId: 'corazones-5', buildId: 'build-0' },
+    );
+    assert.ok('state' in converted);
+    if ('state' in converted) assert.equal(converted.state.builds[0].kind, 'pairs');
+
+    const expanded = applyCasinoMove(
+      makeState([byId('corazones-4'), byId('diamantes-10')], [byId('picas-1')], [build]),
+      0,
+      { type: 'expand', cardId: 'corazones-4', buildId: 'build-0', tableIds: ['picas-1'] },
+    );
+    assert.ok('state' in expanded);
+    if ('state' in expanded) assert.equal(expanded.state.builds[0].value, 10);
   });
 });
 
