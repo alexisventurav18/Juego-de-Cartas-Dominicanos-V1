@@ -268,41 +268,43 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
               Mazo · {state.deck.length}
             </p>
           </div>
-          <div className="flex min-h-24 min-w-0 w-full flex-nowrap items-end justify-center gap-1 overflow-x-auto pb-1 pt-1 sm:min-h-36 sm:flex-wrap sm:gap-4 sm:overflow-visible sm:pb-0 sm:pt-0 md:flex-1 md:pt-0">
-            {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
-              <p className="text-sm text-emerald-100/70">La mesa está vacía.</p>
-            )}
-            {state.builds.map((b) => (
-              <TableBuild
-                key={b.id}
-                build={b}
-                selected={tableIds.includes(b.id)}
-                disabled={!myTurn || !card}
-                onSelect={() => pickTableItem(b.id)}
-              />
-            ))}
-            {state.table.map((c, i) =>
-              deal.isTableDealt(i) ? (
-                <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
-                  <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
-                    <PlayingCard
-                      card={c}
-                      size="table"
-                      selected={tableIds.includes(c.id)}
-                      disabled={!myTurn || !card}
-                      onClick={() => pickTableItem(c.id)}
-                    />
-                    {c.id === pointCardId && (
-                      <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
-                        Carta de puntos
-                      </span>
-                    )}
-                  </div>
-                </DealFlight>
-              ) : (
-                <CardBack key={c.id} size="lg" />
-              ),
-            )}
+          <div className="min-h-24 min-w-0 w-full overflow-x-auto pb-1 pt-1 sm:min-h-36 sm:overflow-visible sm:pb-0 sm:pt-0 md:flex-1 md:pt-0">
+            <div className="flex w-max min-w-full shrink-0 flex-nowrap items-end justify-center gap-1 sm:flex-wrap sm:gap-4 md:w-full md:min-w-0">
+              {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
+                <p className="text-sm text-emerald-100/70">La mesa está vacía.</p>
+              )}
+              {state.builds.map((b) => (
+                <TableBuild
+                  key={b.id}
+                  build={b}
+                  selected={tableIds.includes(b.id)}
+                  disabled={!myTurn || !card}
+                  onSelect={() => pickTableItem(b.id)}
+                />
+              ))}
+              {state.table.map((c, i) =>
+                deal.isTableDealt(i) ? (
+                  <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
+                    <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
+                      <PlayingCard
+                        card={c}
+                        size="table"
+                        selected={tableIds.includes(c.id)}
+                        disabled={!myTurn || !card}
+                        onClick={() => pickTableItem(c.id)}
+                      />
+                      {c.id === pointCardId && (
+                        <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
+                          Carta de puntos
+                        </span>
+                      )}
+                    </div>
+                  </DealFlight>
+                ) : (
+                  <CardBack key={c.id} size="lg" />
+                ),
+              )}
+            </div>
           </div>
         </div>
         {captureNotice && captureFlightKey === currentCaptureKey && (
