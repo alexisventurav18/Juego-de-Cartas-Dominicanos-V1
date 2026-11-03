@@ -4,14 +4,22 @@ interface FaceDownStackProps {
   count: number;
   size: CardSize;
   shakeFrame?: number;
+  displayCount?: number;
+  pulseKey?: number;
 }
 
 const MAX_LAYERS = 6;
 const LAYER_OFFSET = 3;
 
-export default function FaceDownStack({ count, size, shakeFrame }: FaceDownStackProps) {
+export default function FaceDownStack({ count, size, shakeFrame, displayCount = count, pulseKey }: FaceDownStackProps) {
   if (count === 0) {
-    return <div className={`border-2 border-dashed border-emerald-300/50 ${SIZE_CLASS[size]}`} />;
+    return (
+      <div className={`relative border-2 border-dashed border-emerald-300/50 ${SIZE_CLASS[size]}`}>
+        <span className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-xs font-bold tabular-nums text-white drop-shadow sm:text-sm">
+          {displayCount}
+        </span>
+      </div>
+    );
   }
 
   const layers = Math.min(count, MAX_LAYERS);
@@ -20,7 +28,7 @@ export default function FaceDownStack({ count, size, shakeFrame }: FaceDownStack
 
   return (
     <div
-      className="grid transition-transform duration-75"
+      className="relative grid transition-transform duration-75"
       style={{
         marginRight: depth * LAYER_OFFSET,
         marginBottom: depth * LAYER_OFFSET,
@@ -39,6 +47,14 @@ export default function FaceDownStack({ count, size, shakeFrame }: FaceDownStack
           <CardBack size={size} />
         </div>
       ))}
+      <span
+        key={pulseKey}
+        className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-xs font-bold tabular-nums text-white drop-shadow sm:text-sm ${
+          pulseKey === undefined ? '' : 'animate-deck-count'
+        }`}
+      >
+        {displayCount}
+      </span>
     </div>
   );
 }

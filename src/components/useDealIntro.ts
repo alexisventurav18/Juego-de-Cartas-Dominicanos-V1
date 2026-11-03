@@ -36,6 +36,8 @@ export function useDealIntro(roundKey: number, seats: number) {
     dealing,
     shuffling,
     shuffleFrame: tick,
+    revealed,
+    dealSteps,
     dealingTo,
     isHandDealt: (seat: number, index: number) => !dealing || index * seats + seat < revealed,
     isTableDealt: (index: number) => !dealing || handSteps + index < revealed,

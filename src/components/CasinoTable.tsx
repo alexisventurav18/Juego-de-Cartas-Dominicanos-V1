@@ -43,6 +43,9 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const [cardId, setCardId] = useState<string | null>(null);
   const [tableIds, setTableIds] = useState<string[]>([]);
   const deal = useDealIntro(state.roundNo, state.players.length);
+  const deckDisplayCount = deal.dealing
+    ? state.deck.length + Math.max(0, deal.dealSteps - Math.min(deal.revealed, deal.dealSteps))
+    : state.deck.length;
   const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1 && !state.players.some(isBotPlayer));
   const [endNoticeDismissedRound, setEndNoticeDismissedRound] = useState<number | null>(null);
   const [closingDismissedRound, setClosingDismissedRound] = useState<number | null>(null);
@@ -253,28 +256,28 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         handCounts={state.hands.map((hand) => hand.length)}
       />
 
-      <section className="relative overflow-hidden rounded-2xl bg-emerald-800 p-3 shadow-inner sm:rounded-3xl sm:p-8">
-        <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/80 sm:mb-4 sm:text-xs sm:tracking-widest">
+      <section className="relative overflow-hidden rounded-2xl bg-emerald-800 p-2 shadow-inner sm:rounded-3xl sm:p-8">
+        <p className="mb-1 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/80 sm:mb-4 sm:text-xs sm:tracking-widest">
           Mesa
         </p>
-        <div className="flex min-h-0 flex-col gap-1 md:flex-row md:items-center md:justify-center md:gap-10">
-          <div ref={deckRef} className="flex w-full flex-row items-center justify-start gap-2 md:w-auto md:flex-col md:gap-3">
-            <FaceDownStack
-              count={state.deck.length}
-              size="deck"
-              shakeFrame={deal.shuffling ? deal.shuffleFrame : undefined}
-            />
+        <div className="grid w-full grid-cols-4 items-end justify-items-center gap-x-1 gap-y-2 md:flex md:items-center md:justify-center md:gap-10">
+          <div ref={deckRef} className="col-span-1 flex min-w-0 flex-col items-center justify-start gap-1 md:w-auto md:gap-2">
             <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-emerald-100/80 sm:text-xs sm:tracking-widest">
-              Mazo · {state.deck.length}
+              Mazo
             </p>
+            <FaceDownStack
+              count={deckDisplayCount}
+              displayCount={deckDisplayCount}
+              pulseKey={deal.dealing ? deal.revealed : undefined}
+              size="deck"
+              shakeFrame={deal.dealing ? deal.revealed : undefined}
+            />
           </div>
-          <div className="min-h-24 min-w-0 w-full overflow-x-auto pb-1 pt-1 sm:min-h-36 sm:overflow-visible sm:pb-0 sm:pt-0 md:flex-1 md:pt-0">
-            <div className="grid w-full grid-cols-4 items-end justify-items-center gap-x-1 gap-y-2 sm:flex sm:w-max sm:min-w-full sm:flex-wrap sm:justify-center sm:gap-4 md:w-full md:min-w-0">
-              {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
-                <p className="col-span-4 text-sm text-emerald-100/70">La mesa está vacía.</p>
-              )}
-              {state.table.map((c, i) =>
-                <div key={c.id} className="flex min-w-0 justify-center md:contents">
+          {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
+            <p className="col-span-3 text-center text-sm text-emerald-100/70 md:col-span-1">La mesa está vacía.</p>
+          )}
+          {state.table.map((c, i) =>
+            <div key={c.id} className="flex min-w-0 justify-center">
                   {deal.isTableDealt(i) ? (
                     <DealFlight origin={deckRef} animate={deal.dealing}>
                       <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
@@ -295,20 +298,18 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                   ) : (
                     <CardBack size="lg" />
                   )}
-                </div>,
-              )}
-              {state.builds.map((b) => (
-                <div key={b.id} className="col-span-4 flex basis-full justify-center sm:justify-center md:contents">
-                  <TableBuild
-                    build={b}
-                    selected={tableIds.includes(b.id)}
-                    disabled={!myTurn || !card}
-                    onSelect={() => pickTableItem(b.id)}
-                  />
-                </div>
-              ))}
+            </div>,
+          )}
+          {state.builds.map((b) => (
+            <div key={b.id} className="col-span-4 flex basis-full justify-center">
+              <TableBuild
+                build={b}
+                selected={tableIds.includes(b.id)}
+                disabled={!myTurn || !card}
+                onSelect={() => pickTableItem(b.id)}
+              />
             </div>
-          </div>
+          ))}
         </div>
         {captureNotice && captureFlightKey === currentCaptureKey && (
           <CaptureFlight
