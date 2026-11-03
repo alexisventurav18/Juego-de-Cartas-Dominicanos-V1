@@ -6,7 +6,7 @@ import {
   suitSymbol,
 } from '@/games/cards';
 
-export type CardSize = 'sm' | 'hand' | 'table' | 'md' | 'lg' | 'xl';
+export type CardSize = 'sm' | 'hand' | 'table' | 'deck' | 'md' | 'lg' | 'xl';
 
 interface PlayingCardProps {
   card: Card;
@@ -20,7 +20,8 @@ interface PlayingCardProps {
 export const SIZE_CLASS: Record<CardSize, string> = {
   sm: 'h-16 w-12 rounded-md sm:h-20 sm:w-14',
   hand: 'h-24 w-16 rounded-lg sm:h-36 sm:w-24',
-  table: 'h-28 w-20 rounded-lg sm:h-40 sm:w-28',
+  table: 'h-24 w-16 rounded-lg sm:h-52 sm:w-36',
+  deck: 'h-20 w-14 rounded-lg sm:h-52 sm:w-36',
   md: 'h-32 w-24 rounded-xl sm:h-40 sm:w-28',
   lg: 'h-32 w-24 rounded-xl sm:h-52 sm:w-36',
   xl: 'h-36 w-24 rounded-xl sm:h-60 sm:w-40',
@@ -30,6 +31,7 @@ const RANK_CLASS: Record<CardSize, string> = {
   sm: 'text-sm',
   hand: 'text-sm sm:text-base',
   table: 'text-sm sm:text-base',
+  deck: 'text-sm sm:text-lg',
   md: 'text-base',
   lg: 'text-lg',
   xl: 'text-lg sm:text-xl',
@@ -39,6 +41,7 @@ const SUIT_CLASS: Record<CardSize, string> = {
   sm: 'text-xl leading-none',
   hand: 'text-3xl leading-none sm:text-4xl',
   table: 'text-4xl leading-none sm:text-5xl',
+  deck: 'text-4xl leading-none sm:text-5xl',
   md: 'text-3xl leading-none',
   lg: 'text-5xl leading-none',
   xl: 'text-5xl leading-none sm:text-6xl',
@@ -48,6 +51,7 @@ const JOKER_CLASS: Record<CardSize, string> = {
   sm: 'text-[9px]',
   hand: 'text-[10px] sm:text-xs',
   table: 'text-xs sm:text-sm',
+  deck: 'text-xs sm:text-sm',
   md: 'text-xs',
   lg: 'text-sm',
   xl: 'text-base',
