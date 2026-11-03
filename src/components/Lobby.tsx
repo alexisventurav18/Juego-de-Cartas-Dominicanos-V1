@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react';
-import { Bot, ChevronDown, DoorOpen, RefreshCw, Spade, Users } from 'lucide-react';
+import { Bot, ChevronDown, DoorOpen, RefreshCw, Spade, Users, WifiOff } from 'lucide-react';
 import { GAMES } from '@/games';
 import type { GameId } from '@/games/shared';
 import { createRoom, createSoloRoom, joinRoom } from '@/lib/rooms';
 import { getPlayerId, getStoredName, resetPlayerIdentity, storeName } from '@/lib/identity';
+import type { OfflineBotMode } from './OfflineBotGame';
 
 interface LobbyProps {
   onEnter: (roomId: string) => void;
+  onStartOffline: (mode: OfflineBotMode, playerName: string) => void;
 }
 
 const GAME_ORDER: GameId[] = ['casino', 'cinquillo', 'burako'];
 
-export default function Lobby({ onEnter }: LobbyProps) {
+export default function Lobby({ onEnter, onStartOffline }: LobbyProps) {
   const [name, setName] = useState(getStoredName);
   const [game, setGame] = useState<GameId>('casino');
   const [code, setCode] = useState('');
@@ -60,6 +62,15 @@ export default function Lobby({ onEnter }: LobbyProps) {
     setName('');
     setCode('');
     setError(null);
+  };
+
+  const startOffline = (mode: OfflineBotMode) => {
+    if (!trimmedName) {
+      setError('Escribe tu nombre para continuar.');
+      return;
+    }
+    storeName(trimmedName);
+    onStartOffline(mode, trimmedName);
   };
 
   return (
@@ -195,6 +206,32 @@ export default function Lobby({ onEnter }: LobbyProps) {
               ? 'Juegas en pareja con un bot contra otra pareja de bots. Sus nombres se asignan al azar.'
               : `Completarás la mesa con ${info.soloPlayerCount - 1} bot${info.soloPlayerCount === 2 ? '' : 's'}.`}
           </p>
+          {game === 'casino' && (
+            <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900">
+                <WifiOff className="h-3.5 w-3.5" /> Jugar sin conexión
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => startOffline('team')}
+                  className="rounded-lg bg-emerald-700 px-2 py-2 text-[11px] font-semibold text-white transition hover:bg-emerald-800"
+                >
+                  Equipo · 4 jugadores
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startOffline('solo')}
+                  className="rounded-lg border border-emerald-300 bg-white px-2 py-2 text-[11px] font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                >
+                  Solitario · 2 jugadores
+                </button>
+              </div>
+              <p className="text-[10px] leading-snug text-emerald-800/80">
+                No requiere sala, cuenta ni conexión. Los bots juegan localmente en este dispositivo.
+              </p>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleJoin} className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">

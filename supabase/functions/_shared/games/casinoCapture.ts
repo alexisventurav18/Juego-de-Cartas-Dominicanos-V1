@@ -199,6 +199,36 @@ export function expansionValue(
   ) ?? null;
 }
 
+/**
+ * Sube una sumatoria y, en el mismo turno, une una carta suelta del nuevo
+ * valor para convertirla en pares. La carta que forma los pares no se suma
+ * al cálculo del aumento: actúa como la segunda pareja del grupo.
+ */
+export function expansionToPairsValue(
+  card: Card,
+  build: Build,
+  looseCards: Card[],
+  handAfter: Card[],
+): number | null {
+  if (build.kind === 'pairs' || looseCards.length === 0) return null;
+  for (let mergeIndex = 0; mergeIndex < looseCards.length; mergeIndex += 1) {
+    const merge = looseCards[mergeIndex];
+    const expansionCards = looseCards.filter((_, index) => index !== mergeIndex);
+    const values = possibleTotals([card, ...expansionCards]);
+    for (const added of values) {
+      const value = build.value + added;
+      if (
+        value <= MAX_CAPTURE_VALUE &&
+        captureValues(merge).includes(value) &&
+        handCanCapture(handAfter, value)
+      ) {
+        return value;
+      }
+    }
+  }
+  return null;
+}
+
 export function convertValue(card: Card, build: Build, handAfter: Card[]): number | null {
   if (!captureValues(card).includes(build.value)) return null;
   return handCanCapture(handAfter, build.value) ? build.value : null;

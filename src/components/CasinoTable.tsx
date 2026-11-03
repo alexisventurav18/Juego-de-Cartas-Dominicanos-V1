@@ -10,7 +10,9 @@ import {
 } from '@/games/casino';
 import {
   canCapture,
+  captureValues,
   convertValue,
+  expansionToPairsValue,
   expansionValue,
   formationValue,
   isLegalCapture,
@@ -43,6 +45,9 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const [cardId, setCardId] = useState<string | null>(null);
   const [tableIds, setTableIds] = useState<string[]>([]);
   const deal = useDealIntro(state.roundNo, state.players.length);
+  const deckDisplayCount = deal.dealing
+    ? state.deck.length + Math.max(0, deal.dealSteps - Math.min(deal.revealed, deal.dealSteps))
+    : state.deck.length;
   const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1 && !state.players.some(isBotPlayer));
   const [endNoticeDismissedRound, setEndNoticeDismissedRound] = useState<number | null>(null);
   const [closingDismissedRound, setClosingDismissedRound] = useState<number | null>(null);
@@ -58,6 +63,10 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const selectedItems = items.filter((item) => tableIds.includes(item.id));
   const selectedLoose = state.table.filter((c) => tableIds.includes(c.id));
   const selectedBuilds = state.builds.filter((build) => tableIds.includes(build.id));
+  const capturedTotal = state.captured.reduce(
+    (total, groups) => total + groups.reduce((groupTotal, group) => groupTotal + group.cards.length, 0),
+    0,
+  );
 
   const mustCapture = myTurn && isCaptureForced(state, seat);
   const cardCanCapture = card !== null && canCapture(card, items, seat);
@@ -74,10 +83,17 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const raisedValue = raiseTarget && card ? raiseValue(card, raiseTarget, handAfter) : null;
   const expandTarget =
     canFormCombination && selectedBuilds.length === 1 && selectedLoose.length > 0 ? selectedBuilds[0] : null;
-  const expandedValue = expandTarget && card ? expansionValue(card, expandTarget, selectedLoose, handAfter) : null;
+  const expandedPairsValue = expandTarget && card
+    ? expansionToPairsValue(card, expandTarget, selectedLoose, handAfter)
+    : null;
+  const expandedValue = expandTarget && card
+    ? expandedPairsValue ?? expansionValue(card, expandTarget, selectedLoose, handAfter)
+    : null;
   const convertedValue = raiseTarget && card ? convertValue(card, raiseTarget, handAfter) : null;
   const mergeCard =
-    sumValue !== null ? (state.table.find((c) => c.rank === sumValue && !tableIds.includes(c.id)) ?? null) : null;
+    sumValue !== null
+      ? (state.table.find((c) => captureValues(c).includes(sumValue) && !tableIds.includes(c.id)) ?? null)
+      : null;
   const nextDealer = nextDealerSeat(state);
   const showEndNotice = state.phase === 'gameOver' && endNoticeDismissedRound !== state.roundNo;
   const iWon = state.winnerTeam === teamOf(seat);
@@ -211,7 +227,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   })();
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {dealerOpen && (
         <DealerReveal players={state.players} dealer={state.dealer} onDone={() => setDealerOpen(false)} />
       )}
@@ -232,7 +248,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             name: teamName(state.players, team),
             score: state.scores[team],
             goal: CASINO_TARGET,
-            extra: `${capturedCount} cartas · ${state.viraos[team]} virao${state.viraos[team] === 1 ? '' : 's'}`,
+            extra: `${capturedCount} cartas capturadas`,
             active: teamOf(seat) === team,
             viraoCount: state.viraos[team],
             note: needs
@@ -247,58 +263,62 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         mySeat={seat}
         turn={state.phase === 'playing' && !deal.dealing ? state.turn : null}
         handCounts={state.hands.map((hand) => hand.length)}
-        details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'} en mano`}
       />
 
-      <section className="relative overflow-hidden rounded-3xl bg-emerald-800 p-4 shadow-inner sm:p-8">
-        <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-emerald-200/80">Mesa</p>
-        <div className="flex flex-col items-center gap-5 md:flex-row md:justify-center md:gap-10">
-          <div ref={deckRef} className="flex flex-col items-center gap-3">
-            <FaceDownStack
-              count={state.deck.length}
-              size="lg"
-              shakeFrame={deal.shuffling ? deal.shuffleFrame : undefined}
-            />
-            <p className="text-xs font-medium uppercase tracking-widest text-emerald-100/80">
-              Mazo · {state.deck.length}
+      <section className="relative overflow-hidden rounded-2xl bg-emerald-800 p-2 shadow-inner sm:rounded-3xl sm:p-8">
+        <p className="mb-1 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/80 sm:mb-4 sm:text-xs sm:tracking-widest">
+          Mesa
+        </p>
+        <div className="grid w-full grid-cols-4 items-end justify-items-center gap-x-1 gap-y-2 md:flex md:items-center md:justify-center md:gap-10">
+          <div ref={deckRef} className="col-span-1 flex min-w-0 flex-col items-center justify-start gap-1 md:w-auto md:gap-2">
+            <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-emerald-100/80 sm:text-xs sm:tracking-widest">
+              Mazo
             </p>
+            <FaceDownStack
+              count={deckDisplayCount}
+              displayCount={deckDisplayCount}
+              pulseKey={deal.dealing ? deal.revealed : undefined}
+              size="deck"
+              shakeFrame={deal.dealing ? deal.revealed : undefined}
+            />
           </div>
-          <div className="flex min-h-32 min-w-0 flex-1 flex-wrap items-center justify-center gap-2 sm:min-h-36 sm:gap-4">
-            {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
-              <p className="text-sm text-emerald-100/70">La mesa está vacía.</p>
-            )}
-            {state.builds.map((b) => (
+          {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
+            <p className="col-span-3 text-center text-sm text-emerald-100/70 md:col-span-1">La mesa está vacía.</p>
+          )}
+          {state.table.map((c, i) =>
+            <div key={c.id} className="flex min-w-0 justify-center">
+                  {deal.isTableDealt(i) ? (
+                    <DealFlight origin={deckRef} animate={deal.dealing}>
+                      <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
+                        <PlayingCard
+                          card={c}
+                          size="table"
+                          selected={tableIds.includes(c.id)}
+                          disabled={!myTurn || !card}
+                          onClick={() => pickTableItem(c.id)}
+                        />
+                        {c.id === pointCardId && (
+                          <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
+                            Carta de puntos
+                          </span>
+                        )}
+                      </div>
+                    </DealFlight>
+                  ) : (
+                    <CardBack size="lg" />
+                  )}
+            </div>,
+          )}
+          {state.builds.map((b) => (
+            <div key={b.id} className="col-span-2 flex min-w-0 justify-center md:contents">
               <TableBuild
-                key={b.id}
                 build={b}
                 selected={tableIds.includes(b.id)}
                 disabled={!myTurn || !card}
                 onSelect={() => pickTableItem(b.id)}
               />
-            ))}
-            {state.table.map((c, i) =>
-              deal.isTableDealt(i) ? (
-                <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
-                  <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
-                    <PlayingCard
-                      card={c}
-                      size="lg"
-                      selected={tableIds.includes(c.id)}
-                      disabled={!myTurn || !card}
-                      onClick={() => pickTableItem(c.id)}
-                    />
-                    {c.id === pointCardId && (
-                      <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
-                        Carta de puntos
-                      </span>
-                    )}
-                  </div>
-                </DealFlight>
-              ) : (
-                <CardBack key={c.id} size="lg" />
-              ),
-            )}
-          </div>
+            </div>
+          ))}
         </div>
         {captureNotice && captureFlightKey === currentCaptureKey && (
           <CaptureFlight
@@ -310,11 +330,23 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         )}
       </section>
 
-      <section className="grid gap-5 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:gap-6 sm:p-6">
+      <section className="hidden gap-5 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:grid sm:grid-cols-2 sm:gap-6 sm:p-6">
         {([0, 1] as const).map((team) => (
           <CapturedPile key={team} title={teamName(state.players, team)} groups={state.captured[team]} />
         ))}
       </section>
+
+      <details className="rounded-2xl border border-stone-200 bg-white shadow-sm sm:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-xs font-semibold text-stone-700">
+          <span>Cartas capturadas</span>
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 tabular-nums text-stone-600">{capturedTotal}</span>
+        </summary>
+        <div className="grid gap-3 border-t border-stone-100 p-3">
+          {([0, 1] as const).map((team) => (
+            <CapturedPile key={team} title={teamName(state.players, team)} groups={state.captured[team]} />
+          ))}
+        </div>
+      </details>
 
       {state.summary && state.phase !== 'playing' && (
         <RoundResultPanel
@@ -330,14 +362,14 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
       )}
 
       {state.phase === 'playing' && (
-        <section className="space-y-5">
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+        <section className="space-y-3 sm:space-y-5">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-3">
             {state.hands[seat].map((c, i) =>
               deal.isHandDealt(seat, i) ? (
                 <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
-                  <PlayingCard
+                    <PlayingCard
                     card={c}
-                    size="xl"
+                      size="hand"
                     selected={c.id === cardId}
                     disabled={!myTurn}
                     onClick={() => pickCard(c.id)}
@@ -348,14 +380,14 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
               ),
             )}
           </div>
-          <div className="flex flex-col items-center gap-3">
-            <p className="min-h-5 text-center text-sm text-stone-600">{hint}</p>
-            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3">
+          <div className="sticky bottom-2 z-20 flex flex-col items-center gap-2 rounded-2xl border border-stone-200 bg-stone-100/95 p-2 shadow-lg backdrop-blur sm:static sm:gap-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+            <p className="min-h-4 text-center text-xs leading-snug text-stone-600 sm:min-h-5 sm:text-sm">{hint}</p>
+            <div className="grid w-full grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3">
               <button
                 type="button"
                 onClick={capture}
                 disabled={!captureReady}
-                className="min-h-11 rounded-xl bg-emerald-700 px-3 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl bg-emerald-700 px-2 py-2 text-[11px] font-medium leading-tight text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 Llevarme las cartas
               </button>
@@ -363,7 +395,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={raise}
                 disabled={raisedValue === null}
-                className="min-h-11 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-medium text-stone-900 shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl bg-amber-500 px-2 py-2 text-[11px] font-medium leading-tight text-stone-900 shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 Subir combinación
               </button>
@@ -371,7 +403,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={convert}
                 disabled={convertedValue === null}
-                className="min-h-11 rounded-xl border border-amber-500 bg-white px-3 py-2.5 text-xs font-medium text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl border border-amber-500 bg-white px-2 py-2 text-[11px] font-medium leading-tight text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 {raiseTarget?.kind === 'pairs' ? 'Ampliar pares' : 'Convertir en pares'}
               </button>
@@ -379,7 +411,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={buildSum}
                 disabled={sumValue === null}
-                className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl border border-emerald-600 bg-white px-2 py-2 text-[11px] font-medium leading-tight text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 Formar sumatoria
               </button>
@@ -387,7 +419,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 <button
                   type="button"
                   onClick={buildSumAndPairs}
-                  className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 sm:px-5 sm:text-sm"
+                  className="min-h-10 rounded-xl border border-emerald-600 bg-white px-2 py-2 text-[11px] font-medium leading-tight text-emerald-800 transition hover:bg-emerald-50 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
                 >
                   Sumatoria y pares
                 </button>
@@ -396,7 +428,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={buildPairs}
                 disabled={pairsValue === null}
-                className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl border border-emerald-600 bg-white px-2 py-2 text-[11px] font-medium leading-tight text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 Formar pares
               </button>
@@ -404,7 +436,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={expand}
                 disabled={expandedValue === null}
-                className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl border border-emerald-600 bg-white px-2 py-2 text-[11px] font-medium leading-tight text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 Ampliar combinación
               </button>
@@ -412,7 +444,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={drop}
                 disabled={!canDrop || !card}
-                className="min-h-11 rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-800 transition hover:border-stone-400 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-sm"
+                className="min-h-10 rounded-xl border border-stone-300 bg-white px-2 py-2 text-[11px] font-medium leading-tight text-stone-800 transition hover:border-stone-400 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm"
               >
                 Dejar en la mesa
               </button>

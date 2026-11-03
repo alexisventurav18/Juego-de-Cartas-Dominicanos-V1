@@ -50,7 +50,6 @@ export default function CinquilloTable({ state, seat, onMove }: CinquilloTablePr
         mySeat={seat}
         turn={finished ? null : state.turn}
         handCounts={state.hands.map((hand) => hand.length)}
-        details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'}`}
       />
 
       <section className="rounded-3xl bg-emerald-800 p-3 shadow-inner sm:p-6">

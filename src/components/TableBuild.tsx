@@ -54,7 +54,7 @@ export default function TableBuild({ build, selected, disabled, onSelect }: Tabl
         if (!disabled) onSelect();
       }}
       onKeyDown={onKeyDown}
-      className={`relative flex cursor-pointer flex-col items-center gap-2 rounded-2xl p-2 transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+      className={`relative flex shrink-0 cursor-pointer flex-col items-center gap-2 rounded-2xl p-2 transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
         selected ? 'bg-amber-300/25 ring-2 ring-amber-400' : disabled ? '' : 'hover:-translate-y-1'
       } ${disabled ? 'cursor-not-allowed opacity-80' : ''} ${celebrating ? 'animate-pairs-combo' : ''}`}
     >
@@ -76,7 +76,7 @@ export default function TableBuild({ build, selected, disabled, onSelect }: Tabl
               zIndex: i + 1,
             }}
           >
-            <PlayingCard card={card} size="lg" />
+            <PlayingCard card={card} size="table" />
           </div>
         ))}
       </div>

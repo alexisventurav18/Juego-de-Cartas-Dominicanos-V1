@@ -14,6 +14,7 @@ import { casinoBotMove } from '../src/games/casinoBot';
 import {
   captureOptions,
   convertValue,
+  expansionToPairsValue,
   expansionValue,
   formationValue,
   isValidCapture,
@@ -278,6 +279,51 @@ describe('sumatorias y formación de pares', () => {
     );
     assert.ok('state' in expanded);
     if ('state' in expanded) assert.equal(expanded.state.builds[0].value, 10);
+  });
+
+  it('permite subir una sumatoria y convertirla en pares con la carta objetivo de la mesa', () => {
+    const build: Build = {
+      id: 'build-0',
+      kind: 'sum',
+      value: 12,
+      cards: [byId('diamantes-7'), byId('treboles-5')],
+      owner: 0,
+    };
+    const ace = byId('corazones-1');
+    const king = byId('diamantes-13');
+    assert.equal(expansionToPairsValue(ace, build, [king], [byId('treboles-13')]), 13);
+
+    const result = applyCasinoMove(
+      makeState([ace, byId('treboles-13')], [king], [build]),
+      0,
+      { type: 'expand', cardId: ace.id, buildId: build.id, tableIds: [king.id] },
+    );
+    assert.ok('state' in result);
+    if ('state' in result) {
+      assert.equal(result.state.builds[0].kind, 'pairs');
+      assert.equal(result.state.builds[0].value, 13);
+      assert.equal(result.state.table.length, 0);
+    }
+  });
+
+  it('permite la misma conversión para todos los objetivos que puede subir un As', () => {
+    for (let target = 3; target <= 14; target += 1) {
+      const mergeRank = target === 14 ? 1 : target;
+      const build: Build = {
+        id: `build-${target}`,
+        kind: 'sum',
+        value: target - 1,
+        cards: [byId('picas-2')],
+        owner: 0,
+      };
+      const merge = byId(`diamantes-${mergeRank}`);
+      const handTarget = byId(`treboles-${mergeRank}`);
+      assert.equal(
+        expansionToPairsValue(byId('corazones-1'), build, [merge], [handTarget]),
+        target,
+        `el As debe poder subir a ${target} y formar pares`,
+      );
+    }
   });
 });
 

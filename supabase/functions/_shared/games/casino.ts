@@ -4,6 +4,7 @@ import {
   captureValues,
   captureOptions,
   convertValue,
+  expansionToPairsValue,
   expansionValue,
   type FormationKind,
   formationValue,
@@ -467,14 +468,17 @@ function expandCombination(
   if (loose.length === 0 || loose.length !== tableIds.length) {
     return { error: 'Elige cartas sueltas de la mesa para ampliar la combinación.' };
   }
-  const value = expansionValue(card, build, loose, state.hands[seat]);
+  const pairsValue = expansionToPairsValue(card, build, loose, state.hands[seat].filter((c) => c.id !== card.id));
+  const value = pairsValue ?? expansionValue(card, build, loose, state.hands[seat]);
   if (value === null) {
     return {
       error: `No puedes ampliar esta combinación: revisa los valores y que te quede en mano una carta de su nuevo valor (no puede pasar de ${MAX_CAPTURE_VALUE}).`,
     };
   }
   const builds = state.builds.map((b) =>
-    b.id === buildId ? { ...b, value, cards: [...b.cards, card, ...loose] } : b,
+    b.id === buildId
+      ? { ...b, kind: pairsValue === null ? b.kind : ('pairs' as const), value, cards: [...b.cards, card, ...loose] }
+      : b,
   );
   return {
     state: advanceTurn(
@@ -519,7 +523,7 @@ export function formationMoves(state: CasinoState, seat: number): CasinoMove[] {
         }
       }
       for (const build of state.builds) {
-        if (expansionValue(card, build, loose, rest) !== null) {
+        if (expansionToPairsValue(card, build, loose, rest) !== null || expansionValue(card, build, loose, rest) !== null) {
           moves.push({ type: 'expand', cardId: card.id, buildId: build.id, tableIds });
         }
       }
