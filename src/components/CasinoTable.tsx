@@ -257,7 +257,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/80 sm:mb-4 sm:text-xs sm:tracking-widest">
           Mesa
         </p>
-        <div className="flex min-h-[11.5rem] flex-col gap-1 md:min-h-0 md:flex-row md:items-center md:justify-center md:gap-10">
+        <div className="flex min-h-0 flex-col gap-1 md:flex-row md:items-center md:justify-center md:gap-10">
           <div ref={deckRef} className="flex w-full flex-row items-center justify-start gap-2 md:w-auto md:flex-col md:gap-3">
             <FaceDownStack
               count={state.deck.length}
@@ -269,41 +269,44 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             </p>
           </div>
           <div className="min-h-24 min-w-0 w-full overflow-x-auto pb-1 pt-1 sm:min-h-36 sm:overflow-visible sm:pb-0 sm:pt-0 md:flex-1 md:pt-0">
-            <div className="flex w-max min-w-full shrink-0 flex-nowrap items-end justify-center gap-1 sm:flex-wrap sm:gap-4 md:w-full md:min-w-0">
+            <div className="grid w-full grid-cols-4 items-end justify-items-center gap-x-1 gap-y-2 sm:flex sm:w-max sm:min-w-full sm:flex-wrap sm:justify-center sm:gap-4 md:w-full md:min-w-0">
               {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
-                <p className="text-sm text-emerald-100/70">La mesa está vacía.</p>
+                <p className="col-span-4 text-sm text-emerald-100/70">La mesa está vacía.</p>
+              )}
+              {state.table.map((c, i) =>
+                <div key={c.id} className="flex min-w-0 justify-center md:contents">
+                  {deal.isTableDealt(i) ? (
+                    <DealFlight origin={deckRef} animate={deal.dealing}>
+                      <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
+                        <PlayingCard
+                          card={c}
+                          size="table"
+                          selected={tableIds.includes(c.id)}
+                          disabled={!myTurn || !card}
+                          onClick={() => pickTableItem(c.id)}
+                        />
+                        {c.id === pointCardId && (
+                          <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
+                            Carta de puntos
+                          </span>
+                        )}
+                      </div>
+                    </DealFlight>
+                  ) : (
+                    <CardBack size="lg" />
+                  )}
+                </div>,
               )}
               {state.builds.map((b) => (
-                <TableBuild
-                  key={b.id}
-                  build={b}
-                  selected={tableIds.includes(b.id)}
-                  disabled={!myTurn || !card}
-                  onSelect={() => pickTableItem(b.id)}
-                />
+                <div key={b.id} className="col-span-4 flex basis-full justify-center sm:justify-center md:contents">
+                  <TableBuild
+                    build={b}
+                    selected={tableIds.includes(b.id)}
+                    disabled={!myTurn || !card}
+                    onSelect={() => pickTableItem(b.id)}
+                  />
+                </div>
               ))}
-              {state.table.map((c, i) =>
-                deal.isTableDealt(i) ? (
-                  <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
-                    <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
-                      <PlayingCard
-                        card={c}
-                        size="table"
-                        selected={tableIds.includes(c.id)}
-                        disabled={!myTurn || !card}
-                        onClick={() => pickTableItem(c.id)}
-                      />
-                      {c.id === pointCardId && (
-                        <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
-                          Carta de puntos
-                        </span>
-                      )}
-                    </div>
-                  </DealFlight>
-                ) : (
-                  <CardBack key={c.id} size="lg" />
-                ),
-              )}
             </div>
           </div>
         </div>
