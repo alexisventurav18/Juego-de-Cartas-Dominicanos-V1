@@ -14,6 +14,7 @@ export interface GameInfo {
   maxPlayers: number;
   soloPlayerCount: number;
   rules: string[];
+  quickRules?: string[];
 }
 
 export const GAMES: Record<GameId, GameInfo> = {
@@ -25,6 +26,12 @@ export const GAMES: Record<GameId, GameInfo> = {
     playerCountLabel: '2 o 4 jugadores (en parejas)',
     maxPlayers: 4,
     soloPlayerCount: 2,
+    quickRules: [
+      'Captura: juega una carta de tu mano y llévate cartas de la mesa del mismo valor, o cuyo total sea ese valor.',
+      'Suma: junta tu carta con cartas de la mesa para formar una suma, y llévatela después con otra carta de ese valor.',
+      'Gana el primer equipo que llegue a 21 puntos.',
+      'Zona de Cierre: con 17 puntos o más solo sumas con las mayorías que te faltan para llegar a 21 exactos.',
+    ],
     rules: [
       'Se usa la baraja americana de 52 cartas. Con 4 jugadores, las parejas son los que se sientan frente a frente.',
       'Cada jugador recibe 4 cartas y se ponen 4 boca arriba en el centro. Al empezar, un sorteo elige quién reparte (contra bots, un volado de cara o cruz); el reparto rota cada ronda. Los Ases, el 10 de diamantes, el 2 de picas y las espadas salen menos en la mano inicial.',

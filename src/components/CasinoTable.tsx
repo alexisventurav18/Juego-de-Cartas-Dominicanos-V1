@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   CASINO_TARGET,
   type CasinoMove,
@@ -19,7 +19,9 @@ import {
 } from '@/games/casinoCapture';
 import { isBotPlayer, teamName, teamOf } from '@/games/shared';
 import CapturedPile from './CapturedPile';
+import ClosingZoneBanner, { type ClosingAlert } from './ClosingZoneBanner';
 import DealerReveal from './DealerReveal';
+import DealFlight from './DealFlight';
 import FaceDownStack from './FaceDownStack';
 import PlayingCard, { CardBack } from './PlayingCard';
 import RoundResultPanel from './RoundResultPanel';
@@ -42,6 +44,8 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const deal = useDealIntro(state.roundNo, state.players.length);
   const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1 && !state.players.some(isBotPlayer));
   const [endNoticeDismissedRound, setEndNoticeDismissedRound] = useState<number | null>(null);
+  const [closingDismissedRound, setClosingDismissedRound] = useState<number | null>(null);
+  const deckRef = useRef<HTMLDivElement>(null);
 
   const myTurn = state.phase === 'playing' && state.turn === seat && !deal.dealing;
   const card = state.hands[seat].find((c) => c.id === cardId) ?? null;
@@ -73,6 +77,14 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const nextDealer = nextDealerSeat(state);
   const showEndNotice = state.phase === 'gameOver' && endNoticeDismissedRound !== state.roundNo;
   const iWon = state.winnerTeam === teamOf(seat);
+  const closingAlerts: ClosingAlert[] = [0, 1].flatMap((team) => {
+    const needs = closingNeeds(state.scores[team]);
+    if (!needs) return [];
+    const entered = state.summary !== null && (state.summary.needs?.[team] ?? null) === null;
+    return [{ team: teamName(state.players, team), score: state.scores[team], needs, entered }];
+  });
+  const showClosingAlert =
+    closingAlerts.length > 0 && state.phase !== 'gameOver' && !deal.dealing && closingDismissedRound !== state.roundNo;
 
   const reset = () => {
     setCardId(null);
@@ -186,6 +198,9 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         ) : (
           <DefeatNotice onContinue={() => setEndNoticeDismissedRound(state.roundNo)} />
         ))}
+      {showClosingAlert && (
+        <ClosingZoneBanner alerts={closingAlerts} onDismiss={() => setClosingDismissedRound(state.roundNo)} />
+      )}
       <ScoreBoard
         teams={[0, 1].map((team) => {
           const needs = closingNeeds(state.scores[team]);
@@ -213,7 +228,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
       <section className="relative overflow-hidden rounded-3xl bg-emerald-800 p-5 shadow-inner sm:p-8">
         <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-emerald-200/80">Mesa</p>
         <div className="flex flex-col items-center gap-6 md:flex-row md:justify-center md:gap-10">
-          <div className="flex flex-col items-center gap-3">
+          <div ref={deckRef} className="flex flex-col items-center gap-3">
             <FaceDownStack
               count={state.deck.length}
               size="lg"
@@ -238,14 +253,15 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             ))}
             {state.table.map((c, i) =>
               deal.isTableDealt(i) ? (
-                <PlayingCard
-                  key={c.id}
-                  card={c}
-                  size="lg"
-                  selected={tableIds.includes(c.id)}
-                  disabled={!myTurn || !card}
-                  onClick={() => pickTableItem(c.id)}
-                />
+                <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
+                  <PlayingCard
+                    card={c}
+                    size="lg"
+                    selected={tableIds.includes(c.id)}
+                    disabled={!myTurn || !card}
+                    onClick={() => pickTableItem(c.id)}
+                  />
+                </DealFlight>
               ) : (
                 <CardBack key={c.id} size="lg" />
               ),
@@ -278,14 +294,15 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
             {state.hands[seat].map((c, i) =>
               deal.isHandDealt(seat, i) ? (
-                <PlayingCard
-                  key={c.id}
-                  card={c}
-                  size="xl"
-                  selected={c.id === cardId}
-                  disabled={!myTurn}
-                  onClick={() => pickCard(c.id)}
-                />
+                <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
+                  <PlayingCard
+                    card={c}
+                    size="xl"
+                    selected={c.id === cardId}
+                    disabled={!myTurn}
+                    onClick={() => pickCard(c.id)}
+                  />
+                </DealFlight>
               ) : (
                 <CardBack key={c.id} size="xl" />
               ),

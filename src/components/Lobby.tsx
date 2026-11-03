@@ -99,6 +99,19 @@ export default function Lobby({ onEnter }: LobbyProps) {
         </div>
 
         <div className="rounded-2xl border border-stone-200 bg-white">
+          {info.quickRules && (
+            <div className="space-y-3 border-b border-stone-100 px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Lo esencial</p>
+              <ul className="space-y-2 text-sm leading-relaxed text-stone-700">
+                {info.quickRules.map((rule) => (
+                  <li key={rule} className="flex gap-2">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
+                    <span>{rule}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setShowRules((v) => !v)}

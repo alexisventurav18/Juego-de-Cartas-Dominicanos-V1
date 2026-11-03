@@ -16,14 +16,14 @@ export function useDealIntro(roundKey: number, seats: number) {
   }, [roundKey]);
 
   useEffect(() => {
-    if (tick >= totalTicks) return;
+    if (tick > totalTicks) return;
     const delay = tick < SHUFFLE_TICKS ? SHUFFLE_TICK_MS : DEAL_STEP_MS;
     const id = window.setTimeout(() => setTick((t) => t + 1), delay);
     return () => window.clearTimeout(id);
   }, [tick, totalTicks]);
 
   const shuffling = tick < SHUFFLE_TICKS;
-  const dealing = tick < totalTicks;
+  const dealing = tick <= totalTicks;
   const revealed = Math.max(0, tick - SHUFFLE_TICKS);
   const handSteps = seats * CARDS_PER_HAND;
 
