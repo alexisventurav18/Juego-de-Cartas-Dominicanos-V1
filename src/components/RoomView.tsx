@@ -160,26 +160,26 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   const info = GAMES[room.game];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-      <header className="mb-6 flex items-center justify-between gap-4">
+    <div className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-6 sm:py-8">
+      <header className="mb-3 flex items-center justify-between gap-3 sm:mb-6 sm:gap-4">
         <button
           type="button"
           onClick={onLeave}
-          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 sm:gap-2 sm:px-3 sm:text-sm"
         >
           <ArrowLeft className="h-4 w-4" />
           Salir de la sala
         </button>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-widest text-stone-500">{info.name}</p>
-          <p className="font-mono text-lg font-semibold tracking-[0.3em] text-stone-900">{room.code}</p>
+          <p className="text-[10px] uppercase tracking-widest text-stone-500 sm:text-xs">{info.name}</p>
+          <p className="font-mono text-base font-semibold tracking-[0.3em] text-stone-900 sm:text-lg">{room.code}</p>
         </div>
       </header>
 
       <div
         role="status"
         aria-live="polite"
-        className={`mb-5 flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-medium ${
+        className={`mb-3 flex items-center justify-center gap-2 rounded-xl px-3 py-1.5 text-[11px] font-medium sm:mb-5 sm:px-4 sm:py-2 sm:text-xs ${
           connection === 'connected'
             ? 'bg-emerald-50 text-emerald-700'
             : connection === 'offline'

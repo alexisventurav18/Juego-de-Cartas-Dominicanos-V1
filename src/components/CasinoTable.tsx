@@ -236,7 +236,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             name: teamName(state.players, team),
             score: state.scores[team],
             goal: CASINO_TARGET,
-            extra: `${capturedCount} cartas · ${state.viraos[team]} virao${state.viraos[team] === 1 ? '' : 's'}`,
+            extra: `${capturedCount} cartas capturadas`,
             active: teamOf(seat) === team,
             viraoCount: state.viraos[team],
             note: needs
@@ -251,7 +251,6 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         mySeat={seat}
         turn={state.phase === 'playing' && !deal.dealing ? state.turn : null}
         handCounts={state.hands.map((hand) => hand.length)}
-        details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'} en mano`}
       />
 
       <section className="relative overflow-hidden rounded-2xl bg-emerald-800 p-3 shadow-inner sm:rounded-3xl sm:p-8">

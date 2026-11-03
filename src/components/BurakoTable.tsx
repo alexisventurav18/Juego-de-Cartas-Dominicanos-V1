@@ -73,7 +73,6 @@ export default function BurakoTable({ state, seat, onMove }: BurakoTableProps) {
         mySeat={seat}
         turn={state.phase === 'playing' ? state.turn : null}
         handCounts={state.hands.map((hand) => hand.length)}
-        details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'} en mano`}
       />
 
       <section className="space-y-5 rounded-3xl bg-emerald-800 p-4 shadow-inner sm:space-y-6 sm:p-6">

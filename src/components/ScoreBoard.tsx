@@ -51,32 +51,32 @@ export default function ScoreBoard({ teams }: { teams: TeamScore[] }) {
   }, [viraoSignature]);
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-4">
       {teams.map((team) => {
         const progress = Math.min(100, Math.max(0, (team.score / team.goal) * 100));
         return (
           <div
             key={team.name}
-            className={`rounded-2xl border p-3 transition duration-300 sm:p-4 ${
+            className={`rounded-xl border p-2.5 transition duration-300 sm:rounded-2xl sm:p-4 ${
               team.active ? 'border-emerald-600 bg-emerald-50' : 'border-stone-200 bg-white'
             }`}
           >
-            <p className="truncate text-sm font-semibold text-stone-900">{team.name}</p>
-            <p className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-2xl font-semibold tabular-nums text-stone-900 sm:text-3xl">{team.score}</span>
-              <span className="text-sm text-stone-500">/ {team.goal}</span>
+            <p className="truncate text-xs font-semibold text-stone-900 sm:text-sm">{team.name}</p>
+            <p className="mt-0.5 flex items-baseline gap-1 sm:mt-1 sm:gap-1.5">
+              <span className="text-xl font-semibold tabular-nums text-stone-900 sm:text-3xl">{team.score}</span>
+              <span className="text-[11px] text-stone-500 sm:text-sm">/ {team.goal}</span>
             </p>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-200">
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-stone-200 sm:mt-3 sm:h-1.5">
               <div
                 className="h-full rounded-full bg-emerald-600 transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-stone-500">{team.extra}</p>
+            <p className="mt-1 truncate text-[10px] text-stone-500 sm:mt-2 sm:text-xs">{team.extra}</p>
             {team.viraoCount !== undefined && (
-              <div className="mt-2 flex min-h-7 items-center">
+              <div className="mt-1 flex min-h-6 items-center sm:mt-2 sm:min-h-7">
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 ${
+                  className={`inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900 sm:px-2.5 sm:py-1 sm:text-xs ${
                     viraoAnimations[team.name] === 'gain'
                       ? 'animate-virao-gain'
                       : viraoAnimations[team.name] === 'loss'
@@ -93,7 +93,7 @@ export default function ScoreBoard({ teams }: { teams: TeamScore[] }) {
               </div>
             )}
             {team.note && (
-              <p className="mt-2 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs font-medium leading-snug text-amber-900">
+              <p className="mt-1 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-medium leading-snug text-amber-900 sm:mt-2 sm:px-2.5 sm:py-1.5 sm:text-xs">
                 {team.note}
               </p>
             )}
