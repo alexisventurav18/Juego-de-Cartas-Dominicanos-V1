@@ -10,7 +10,9 @@ import {
 } from '@/games/casino';
 import {
   canCapture,
+  captureValues,
   convertValue,
+  expansionToPairsValue,
   expansionValue,
   formationValue,
   isLegalCapture,
@@ -81,10 +83,17 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const raisedValue = raiseTarget && card ? raiseValue(card, raiseTarget, handAfter) : null;
   const expandTarget =
     canFormCombination && selectedBuilds.length === 1 && selectedLoose.length > 0 ? selectedBuilds[0] : null;
-  const expandedValue = expandTarget && card ? expansionValue(card, expandTarget, selectedLoose, handAfter) : null;
+  const expandedPairsValue = expandTarget && card
+    ? expansionToPairsValue(card, expandTarget, selectedLoose, handAfter)
+    : null;
+  const expandedValue = expandTarget && card
+    ? expandedPairsValue ?? expansionValue(card, expandTarget, selectedLoose, handAfter)
+    : null;
   const convertedValue = raiseTarget && card ? convertValue(card, raiseTarget, handAfter) : null;
   const mergeCard =
-    sumValue !== null ? (state.table.find((c) => c.rank === sumValue && !tableIds.includes(c.id)) ?? null) : null;
+    sumValue !== null
+      ? (state.table.find((c) => captureValues(c).includes(sumValue) && !tableIds.includes(c.id)) ?? null)
+      : null;
   const nextDealer = nextDealerSeat(state);
   const showEndNotice = state.phase === 'gameOver' && endNoticeDismissedRound !== state.roundNo;
   const iWon = state.winnerTeam === teamOf(seat);
