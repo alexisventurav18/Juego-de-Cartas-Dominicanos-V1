@@ -91,7 +91,7 @@ export function createGameState(game: GameId, players: Player[], dealer?: number
   return createBurakoGame(players);
 }
 
-export function createSoloPlayers(game: GameId, human: Player): Player[] {
+export function createSoloPlayers(game: GameId, human: Player, playerCount = GAMES[game].soloPlayerCount): Player[] {
   const botNames = [
     'Santiago',
     'Valentina',
@@ -103,7 +103,7 @@ export function createSoloPlayers(game: GameId, human: Player): Player[] {
     'Daniela',
   ];
   const availableNames = [...botNames];
-  const bots = Array.from({ length: GAMES[game].soloPlayerCount - 1 }, (_, i) => {
+  const bots = Array.from({ length: playerCount - 1 }, (_, i) => {
     const nameIndex = randomInt(availableNames.length);
     const [name] = availableNames.splice(nameIndex, 1);
     return { id: `bot-${i + 1}`, name };

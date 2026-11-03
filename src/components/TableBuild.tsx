@@ -76,7 +76,7 @@ export default function TableBuild({ build, selected, disabled, onSelect }: Tabl
               zIndex: i + 1,
             }}
           >
-            <PlayingCard card={card} size="lg" />
+            <PlayingCard card={card} size="table" />
           </div>
         ))}
       </div>
