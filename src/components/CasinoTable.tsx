@@ -258,8 +258,8 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/80 sm:mb-4 sm:text-xs sm:tracking-widest">
           Mesa
         </p>
-        <div className="relative min-h-[9.5rem] md:flex md:items-center md:justify-center md:gap-10">
-          <div ref={deckRef} className="absolute right-1 top-0 z-10 flex flex-col items-center gap-1 sm:static sm:gap-3">
+        <div className="flex min-h-[11.5rem] flex-col gap-1 md:min-h-0 md:flex-row md:items-center md:justify-center md:gap-10">
+          <div ref={deckRef} className="flex w-full flex-row items-center justify-start gap-2 md:w-auto md:flex-col md:gap-3">
             <FaceDownStack
               count={state.deck.length}
               size="deck"
@@ -269,7 +269,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
               Mazo · {state.deck.length}
             </p>
           </div>
-          <div className="flex min-h-32 min-w-0 w-full flex-nowrap items-end justify-center gap-1 overflow-x-auto pb-1 pt-10 sm:min-h-36 sm:flex-wrap sm:gap-4 sm:overflow-visible sm:pb-0 sm:pt-0">
+          <div className="flex min-h-24 min-w-0 w-full flex-nowrap items-end justify-center gap-1 overflow-x-auto pb-1 pt-1 sm:min-h-36 sm:flex-wrap sm:gap-4 sm:overflow-visible sm:pb-0 sm:pt-0 md:flex-1 md:pt-0">
             {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
               <p className="text-sm text-emerald-100/70">La mesa está vacía.</p>
             )}
