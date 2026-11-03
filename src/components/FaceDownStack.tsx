@@ -52,6 +52,7 @@ export default function FaceDownStack({ count, size, shakeFrame, displayCount = 
         className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-xs font-bold tabular-nums text-white drop-shadow sm:text-sm ${
           pulseKey === undefined ? '' : 'animate-deck-count'
         }`}
+        style={{ transform: `translate(${depth * LAYER_OFFSET}px, ${depth * LAYER_OFFSET}px)` }}
       >
         {displayCount}
       </span>
