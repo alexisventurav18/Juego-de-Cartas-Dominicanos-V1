@@ -36,27 +36,42 @@ export function tableItems(loose: Card[], builds: Build[]): TableItem[] {
   return [...looseItems, ...buildItems];
 }
 
-function canSplitIntoTargets(items: TableItem[], target: number, minGroups: number): boolean {
-  const memo = new Map<string, boolean>();
-  const place = (i: number, filled: number, done: number): boolean => {
-    if (i === items.length) return filled === 0 && done >= minGroups;
-    const key = `${i}:${filled}:${done}`;
-    const known = memo.get(key);
-    if (known !== undefined) return known;
-    let ok = false;
-    for (const value of items[i].values) {
-      const next = filled + value;
-      if (next > target) continue;
-      const closed = next === target;
-      if (place(i + 1, closed ? 0 : next, closed ? Math.min(done + 1, minGroups) : done)) {
-        ok = true;
-        break;
-      }
+function reachesTarget(items: TableItem[], mask: number, target: number): boolean {
+  let sums = new Set<number>([0]);
+  items.forEach((item, i) => {
+    if (!(mask & (1 << i))) return;
+    const next = new Set<number>();
+    for (const sum of sums) {
+      for (const value of item.values) if (sum + value <= target) next.add(sum + value);
     }
-    memo.set(key, ok);
-    return ok;
-  };
-  return place(0, 0, 0);
+    sums = next;
+  });
+  return sums.has(target);
+}
+
+/** Cuántos grupos que suman `target` forman exactamente las cartas de `mask` (-1 si no se puede). */
+function bestSplit(items: TableItem[], mask: number, target: number, memo: Map<number, number>): number {
+  if (mask === 0) return 0;
+  const known = memo.get(mask);
+  if (known !== undefined) return known;
+  const first = mask & -mask;
+  const rest = mask ^ first;
+  let best = -1;
+  for (let sub = rest; ; sub = (sub - 1) & rest) {
+    const group = sub | first;
+    if (reachesTarget(items, group, target)) {
+      const remaining = bestSplit(items, mask ^ group, target, memo);
+      if (remaining >= 0) best = Math.max(best, remaining + 1);
+    }
+    if (sub === 0) break;
+  }
+  memo.set(mask, best);
+  return best;
+}
+
+function canSplitIntoTargets(items: TableItem[], target: number, minGroups: number): boolean {
+  const full = (1 << items.length) - 1;
+  return bestSplit(items, full, target, new Map()) >= minGroups;
 }
 
 export function isValidCapture(card: Card, items: TableItem[]): boolean {

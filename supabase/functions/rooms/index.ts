@@ -1,5 +1,4 @@
 // Servidor de salas. Guarda las partidas completas (manos incluidas) y a cada jugador solo le entrega su vista.
-// Despliegue:  npm run sync:functions && supabase functions deploy rooms
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   handleRequest,

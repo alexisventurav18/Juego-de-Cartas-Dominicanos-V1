@@ -1,4 +1,3 @@
-// GENERADO por scripts/syncFunctions.ts desde src/games. No lo edites a mano: cambia el original y ejecuta `npm run sync:functions`.
 import { type Card, americanDoubleDeck, randomInt, shuffle } from './cards.ts';
 import { type MoveResult, type Player, type ScoreLine, teamOf } from './shared.ts';
 

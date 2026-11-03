@@ -172,7 +172,7 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
           {state.game === 'burako' && (
             <BurakoTable state={state} seat={seat} onMove={(move: BurakoMove) => void run(() => sendMove(room.id, move))} />
           )}
-          {isGameFinished(state) && (
+          {isGameFinished(state) && seat === 0 && (
             <div className="mt-8 flex justify-center">
               <button
                 type="button"

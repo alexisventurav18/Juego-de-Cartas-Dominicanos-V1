@@ -12,6 +12,7 @@ interface WaitingRoomProps {
 }
 
 export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomProps) {
+  const isHost = room.players[0]?.id === myId;
   const info = GAMES[room.game];
   const canStart = canStartGame(room.game, room.players.length);
   const slots = Math.max(info.maxPlayers - room.players.length, 0);
@@ -76,15 +77,21 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
             : `Para empezar se necesitan ${info.playerCountLabel.toLowerCase()}.`}
         </p>
 
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={!canStart || busy}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600"
-        >
-          <Play className="h-4 w-4" />
-          {busy ? 'Repartiendo...' : 'Empezar partida'}
-        </button>
+        {isHost ? (
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={!canStart || busy}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600"
+          >
+            <Play className="h-4 w-4" />
+            {busy ? 'Repartiendo...' : 'Empezar partida'}
+          </button>
+        ) : (
+          <p className="rounded-xl bg-stone-100 px-4 py-3 text-center text-sm text-stone-600">
+            Esperando a que {room.players[0]?.name} empiece la partida.
+          </p>
+        )}
       </div>
     </div>
   );

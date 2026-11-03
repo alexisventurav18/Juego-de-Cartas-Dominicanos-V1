@@ -11,6 +11,7 @@ import {
   scoreRound,
 } from '../src/games/casino';
 import { casinoBotMove } from '../src/games/casinoBot';
+import { captureOptions, isValidCapture, pairsRankOf, tableItems } from '../src/games/casinoCapture';
 import type { Player } from '../src/games/shared';
 
 const deck = americanDeck();
@@ -101,6 +102,27 @@ describe('scoreRound con cierre obligatorio', () => {
     const { totals } = scoreRound([a, b], [0, 0], [10, 17]);
     assert.equal(totals[0], 3);
     assert.equal(totals[1], 0); // en cierre: ni as ni 10 de diamantes
+  });
+});
+
+describe('captura con varias combinaciones', () => {
+  const ofRank = (rank: number): Card[] => deck.filter((c) => c.rank === rank);
+  const queen = ofRank(12)[0];
+  const loose = [ofRank(7)[0], ofRank(8)[1], ofRank(3)[2], ofRank(4)[3], ofRank(2)[0]];
+
+  it('una Q toma las cinco cartas: 8+4 y 7+3+2 suman 12', () => {
+    assert.equal(isValidCapture(queen, tableItems(loose, [])), true);
+    const options = captureOptions(queen, tableItems(loose, []), 0);
+    assert.ok(options.some((option) => option.length === loose.length));
+  });
+
+  it('no permite la captura si ninguna partición suma 12 con todas las cartas', () => {
+    const withoutTwo = loose.slice(0, 4);
+    assert.equal(isValidCapture(queen, tableItems(withoutTwo, [])), false);
+  });
+
+  it('detecta las dos parejas de 12 cuando la mesa se reparte en dos grupos', () => {
+    assert.equal(pairsRankOf(queen, tableItems(loose, [])), 12);
   });
 });
 

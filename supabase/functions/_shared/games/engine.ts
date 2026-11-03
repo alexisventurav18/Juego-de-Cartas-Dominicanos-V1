@@ -1,4 +1,3 @@
-// GENERADO por scripts/syncFunctions.ts desde src/games. No lo edites a mano: cambia el original y ejecuta `npm run sync:functions`.
 import { applyBurakoMove, type BurakoMove } from './burako.ts';
 import { applyCasinoMove, type CasinoMove } from './casino.ts';
 import { applyCinquilloMove, type CinquilloMove } from './cinquillo.ts';

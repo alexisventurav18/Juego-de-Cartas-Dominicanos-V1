@@ -1,4 +1,3 @@
-// GENERADO por scripts/syncFunctions.ts desde src/games. No lo edites a mano: cambia el original y ejecuta `npm run sync:functions`.
 import { AMERICAN_RANKS, type Card } from './cards.ts';
 import { applyCasinoMove, nextDealerSeat } from './casino.ts';
 import { casinoBotMove } from './casinoBot.ts';

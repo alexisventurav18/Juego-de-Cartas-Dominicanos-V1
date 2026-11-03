@@ -28,6 +28,7 @@ import SeatBar from './SeatBar';
 import TableBuild from './TableBuild';
 import { useDealIntro } from './useDealIntro';
 import VictoryCelebration from './VictoryCelebration';
+import DefeatNotice from './DefeatNotice';
 
 interface CasinoTableProps {
   state: CasinoState;
@@ -40,7 +41,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const [tableIds, setTableIds] = useState<string[]>([]);
   const deal = useDealIntro(state.roundNo, state.players.length);
   const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1 && !state.players.some(isBotPlayer));
-  const [victoryDismissedRound, setVictoryDismissedRound] = useState<number | null>(null);
+  const [endNoticeDismissedRound, setEndNoticeDismissedRound] = useState<number | null>(null);
 
   const myTurn = state.phase === 'playing' && state.turn === seat && !deal.dealing;
   const card = state.hands[seat].find((c) => c.id === cardId) ?? null;
@@ -70,8 +71,8 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const mergeCard =
     sumValue !== null ? (state.table.find((c) => c.rank === sumValue && !tableIds.includes(c.id)) ?? null) : null;
   const nextDealer = nextDealerSeat(state);
-  const showVictory =
-    state.phase === 'gameOver' && state.winnerTeam === teamOf(seat) && victoryDismissedRound !== state.roundNo;
+  const showEndNotice = state.phase === 'gameOver' && endNoticeDismissedRound !== state.roundNo;
+  const iWon = state.winnerTeam === teamOf(seat);
 
   const reset = () => {
     setCardId(null);
@@ -179,7 +180,12 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
       {dealerOpen && (
         <DealerReveal players={state.players} dealer={state.dealer} onDone={() => setDealerOpen(false)} />
       )}
-      {showVictory && <VictoryCelebration onContinue={() => setVictoryDismissedRound(state.roundNo)} />}
+      {showEndNotice &&
+        (iWon ? (
+          <VictoryCelebration onContinue={() => setEndNoticeDismissedRound(state.roundNo)} />
+        ) : (
+          <DefeatNotice onContinue={() => setEndNoticeDismissedRound(state.roundNo)} />
+        ))}
       <ScoreBoard
         teams={[0, 1].map((team) => {
           const needs = closingNeeds(state.scores[team]);
