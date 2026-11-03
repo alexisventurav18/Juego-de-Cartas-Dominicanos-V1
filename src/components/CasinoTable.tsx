@@ -301,7 +301,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             </div>,
           )}
           {state.builds.map((b) => (
-            <div key={b.id} className="col-span-4 flex basis-full justify-center">
+            <div key={b.id} className="col-span-2 flex min-w-0 justify-center md:contents">
               <TableBuild
                 build={b}
                 selected={tableIds.includes(b.id)}
