@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CASINO_TARGET,
   type CasinoMove,
@@ -19,6 +19,7 @@ import {
 } from '@/games/casinoCapture';
 import { isBotPlayer, teamName, teamOf } from '@/games/shared';
 import CapturedPile from './CapturedPile';
+import CaptureFlight from './CaptureFlight';
 import ClosingZoneBanner, { type ClosingAlert } from './ClosingZoneBanner';
 import DealerReveal from './DealerReveal';
 import DealFlight from './DealFlight';
@@ -45,6 +46,9 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const [dealerOpen, setDealerOpen] = useState(state.roundNo === 1 && !state.players.some(isBotPlayer));
   const [endNoticeDismissedRound, setEndNoticeDismissedRound] = useState<number | null>(null);
   const [closingDismissedRound, setClosingDismissedRound] = useState<number | null>(null);
+  const [pointCardId, setPointCardId] = useState<string | null>(null);
+  const [captureFlightKey, setCaptureFlightKey] = useState<string | null>(null);
+  const lastAnimatedCaptureKey = useRef<string | null>(null);
   const deckRef = useRef<HTMLDivElement>(null);
 
   const myTurn = state.phase === 'playing' && state.turn === seat && !deal.dealing;
@@ -86,6 +90,19 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   const showClosingAlert =
     closingAlerts.length > 0 && state.phase !== 'gameOver' && !deal.dealing && closingDismissedRound !== state.roundNo;
 
+  const captureNotice = state.lastCapture;
+  const currentCaptureKey = captureNotice
+    ? `${state.roundNo}:${captureNotice.seat}:${captureNotice.card.id}:${captureNotice.capturedCount}:${captureNotice.virao ? 'v' : 'n'}`
+    : null;
+
+  useEffect(() => {
+    if (!currentCaptureKey || currentCaptureKey === lastAnimatedCaptureKey.current) return;
+    lastAnimatedCaptureKey.current = currentCaptureKey;
+    setCaptureFlightKey(currentCaptureKey);
+    const timer = window.setTimeout(() => setCaptureFlightKey(null), 950);
+    return () => window.clearTimeout(timer);
+  }, [currentCaptureKey]);
+
   const reset = () => {
     setCardId(null);
     setTableIds([]);
@@ -112,7 +129,13 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   };
 
   const drop = () => {
-    if (card) submit({ type: 'play', cardId: card.id, captureIds: [] });
+    if (card) {
+      if (isCasinoPointCard(card)) {
+        setPointCardId(card.id);
+        window.setTimeout(() => setPointCardId(null), 1000);
+      }
+      submit({ type: 'play', cardId: card.id, captureIds: [] });
+    }
   };
 
   const buildSum = () => {
@@ -188,7 +211,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
   })();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {dealerOpen && (
         <DealerReveal players={state.players} dealer={state.dealer} onDone={() => setDealerOpen(false)} />
       )}
@@ -211,6 +234,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             goal: CASINO_TARGET,
             extra: `${capturedCount} cartas · ${state.viraos[team]} virao${state.viraos[team] === 1 ? '' : 's'}`,
             active: teamOf(seat) === team,
+            viraoCount: state.viraos[team],
             note: needs
               ? `Cierre obligatorio: solo suma con ${closingLabel(needs)} (faltan ${CASINO_TARGET - state.scores[team]} pts).`
               : undefined,
@@ -222,12 +246,13 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
         players={state.players}
         mySeat={seat}
         turn={state.phase === 'playing' && !deal.dealing ? state.turn : null}
+        handCounts={state.hands.map((hand) => hand.length)}
         details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'} en mano`}
       />
 
-      <section className="relative overflow-hidden rounded-3xl bg-emerald-800 p-5 shadow-inner sm:p-8">
+      <section className="relative overflow-hidden rounded-3xl bg-emerald-800 p-4 shadow-inner sm:p-8">
         <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-emerald-200/80">Mesa</p>
-        <div className="flex flex-col items-center gap-6 md:flex-row md:justify-center md:gap-10">
+        <div className="flex flex-col items-center gap-5 md:flex-row md:justify-center md:gap-10">
           <div ref={deckRef} className="flex flex-col items-center gap-3">
             <FaceDownStack
               count={state.deck.length}
@@ -238,7 +263,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
               Mazo · {state.deck.length}
             </p>
           </div>
-          <div className="flex min-h-36 flex-1 flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <div className="flex min-h-32 min-w-0 flex-1 flex-wrap items-center justify-center gap-2 sm:min-h-36 sm:gap-4">
             {state.table.length === 0 && state.builds.length === 0 && !deal.dealing && (
               <p className="text-sm text-emerald-100/70">La mesa está vacía.</p>
             )}
@@ -254,13 +279,20 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             {state.table.map((c, i) =>
               deal.isTableDealt(i) ? (
                 <DealFlight key={c.id} origin={deckRef} animate={deal.dealing}>
-                  <PlayingCard
-                    card={c}
-                    size="lg"
-                    selected={tableIds.includes(c.id)}
-                    disabled={!myTurn || !card}
-                    onClick={() => pickTableItem(c.id)}
-                  />
+                  <div className={c.id === pointCardId ? 'relative animate-point-drop' : ''}>
+                    <PlayingCard
+                      card={c}
+                      size="lg"
+                      selected={tableIds.includes(c.id)}
+                      disabled={!myTurn || !card}
+                      onClick={() => pickTableItem(c.id)}
+                    />
+                    {c.id === pointCardId && (
+                      <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-1 text-[10px] font-bold text-stone-900 shadow-md">
+                        Carta de puntos
+                      </span>
+                    )}
+                  </div>
                 </DealFlight>
               ) : (
                 <CardBack key={c.id} size="lg" />
@@ -268,9 +300,17 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
             )}
           </div>
         </div>
+        {captureNotice && captureFlightKey === currentCaptureKey && (
+          <CaptureFlight
+            playerName={state.players[captureNotice.seat]?.name ?? 'Jugador'}
+            card={captureNotice.card}
+            capturedCount={captureNotice.capturedCount}
+            virao={captureNotice.virao}
+          />
+        )}
       </section>
 
-      <section className="grid gap-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-sm sm:grid-cols-2 sm:p-6">
+      <section className="grid gap-5 rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:gap-6 sm:p-6">
         {([0, 1] as const).map((team) => (
           <CapturedPile key={team} title={teamName(state.players, team)} groups={state.captured[team]} />
         ))}
@@ -310,12 +350,12 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
           </div>
           <div className="flex flex-col items-center gap-3">
             <p className="min-h-5 text-center text-sm text-stone-600">{hint}</p>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3">
               <button
                 type="button"
                 onClick={capture}
                 disabled={!captureReady}
-                className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600"
+                className="min-h-11 rounded-xl bg-emerald-700 px-3 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 sm:px-5 sm:text-sm"
               >
                 Llevarme las cartas
               </button>
@@ -323,7 +363,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={raise}
                 disabled={raisedValue === null}
-                className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-medium text-stone-900 shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600"
+                className="min-h-11 rounded-xl bg-amber-500 px-3 py-2.5 text-xs font-medium text-stone-900 shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600 sm:px-5 sm:text-sm"
               >
                 Subir combinación
               </button>
@@ -331,7 +371,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={convert}
                 disabled={convertedValue === null}
-                className="rounded-xl border border-amber-500 bg-white px-5 py-2.5 text-sm font-medium text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400"
+                className="min-h-11 rounded-xl border border-amber-500 bg-white px-3 py-2.5 text-xs font-medium text-amber-800 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
               >
                 {raiseTarget?.kind === 'pairs' ? 'Ampliar pares' : 'Convertir en pares'}
               </button>
@@ -339,7 +379,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={buildSum}
                 disabled={sumValue === null}
-                className="rounded-xl border border-emerald-600 bg-white px-5 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400"
+                className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
               >
                 Formar sumatoria
               </button>
@@ -347,7 +387,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 <button
                   type="button"
                   onClick={buildSumAndPairs}
-                  className="rounded-xl border border-emerald-600 bg-white px-5 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50"
+                  className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 sm:px-5 sm:text-sm"
                 >
                   Sumatoria y pares
                 </button>
@@ -356,7 +396,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={buildPairs}
                 disabled={pairsValue === null}
-                className="rounded-xl border border-emerald-600 bg-white px-5 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400"
+                className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
               >
                 Formar pares
               </button>
@@ -364,7 +404,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={expand}
                 disabled={expandedValue === null}
-                className="rounded-xl border border-emerald-600 bg-white px-5 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400"
+                className="min-h-11 rounded-xl border border-emerald-600 bg-white px-3 py-2.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-stone-300 disabled:text-stone-400 sm:px-5 sm:text-sm"
               >
                 Ampliar combinación
               </button>
@@ -372,7 +412,7 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
                 type="button"
                 onClick={drop}
                 disabled={!canDrop || !card}
-                className="rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-800 transition hover:border-stone-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-xs font-medium text-stone-800 transition hover:border-stone-400 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-sm"
               >
                 Dejar en la mesa
               </button>
@@ -382,4 +422,8 @@ export default function CasinoTable({ state, seat, onMove }: CasinoTableProps) {
       )}
     </div>
   );
+}
+
+function isCasinoPointCard(card: { rank: number; suit: string }): boolean {
+  return card.rank === 1 || (card.suit === 'diamantes' && card.rank === 10) || (card.suit === 'picas' && card.rank === 2);
 }

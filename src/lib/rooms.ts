@@ -16,6 +16,8 @@ export interface RoomRow {
   version: number;
 }
 
+export type RoomConnectionStatus = 'connecting' | 'connected' | 'offline';
+
 const FUNCTION_NAME = 'rooms';
 const SERVER_UNREACHABLE =
   'No se pudo contactar con el servidor de partidas. Revisa tu conexión e inténtalo de nuevo.';
@@ -71,7 +73,11 @@ export function botTick(roomId: string, expectedVersion: number): Promise<RoomRo
  * Avisa cuando la sala cambia. La sala pública no contiene cartas, así que el aviso solo trae la versión;
  * quien lo recibe pide su vista actualizada al servidor.
  */
-export function subscribeToRoom(roomId: string, onVersion: (version: number) => void): () => void {
+export function subscribeToRoom(
+  roomId: string,
+  onVersion: (version: number) => void,
+  onStatus?: (status: RoomConnectionStatus) => void,
+): () => void {
   const channel = supabase
     .channel(`room:${roomId}`)
     .on(
@@ -79,7 +85,11 @@ export function subscribeToRoom(roomId: string, onVersion: (version: number) => 
       { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
       (payload) => onVersion((payload.new as { version: number }).version),
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onStatus?.('connected');
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') onStatus?.('offline');
+      else onStatus?.('connecting');
+    });
   return () => {
     supabase.removeChannel(channel);
   };

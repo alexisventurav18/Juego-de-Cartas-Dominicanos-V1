@@ -57,7 +57,7 @@ export default function BurakoTable({ state, seat, onMove }: BurakoTableProps) {
   })();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <ScoreBoard
         teams={[0, 1].map((t) => ({
           name: teamName(state.players, t),
@@ -72,11 +72,12 @@ export default function BurakoTable({ state, seat, onMove }: BurakoTableProps) {
         players={state.players}
         mySeat={seat}
         turn={state.phase === 'playing' ? state.turn : null}
+        handCounts={state.hands.map((hand) => hand.length)}
         details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'} en mano`}
       />
 
-      <section className="space-y-6 rounded-3xl bg-emerald-800 p-5 shadow-inner sm:p-6">
-        <div className="flex flex-wrap items-end justify-center gap-8">
+      <section className="space-y-5 rounded-3xl bg-emerald-800 p-4 shadow-inner sm:space-y-6 sm:p-6">
+        <div className="flex flex-wrap items-end justify-center gap-5 sm:gap-8">
           <div className="flex flex-col items-center gap-2">
             <CardBack size="md" />
             <span className="text-xs font-medium text-emerald-100/80">Mazo ({state.deck.length})</span>
@@ -129,7 +130,7 @@ export default function BurakoTable({ state, seat, onMove }: BurakoTableProps) {
           </div>
           <div className="flex flex-col items-center gap-3">
             <p className="min-h-5 text-center text-sm text-stone-600">{hint}</p>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-center sm:gap-3">
               <ActionButton
                 disabled={!canDraw}
                 onClick={() => send({ type: 'draw' })}
@@ -182,7 +183,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-xl px-5 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${style}`}
+      className={`min-h-11 rounded-xl px-3 py-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:text-sm ${style}`}
     >
       {children}
     </button>

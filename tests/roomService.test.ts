@@ -217,7 +217,9 @@ describe('servidor de salas: solo contra bots', () => {
   it('una partida completa de Casino sin que el navegador vea las manos de los bots', async () => {
     const store = new MemoryStore();
     const created = await ok(store, { action: 'create', game: 'casino', solo: true, name: 'Ana', ...A });
-    assert.equal(created.players.length, 2);
+    assert.equal(created.players.length, 4);
+    assert.equal(created.players.filter((player) => player.id.startsWith('bot-')).length, 3);
+    assert.equal(new Set(created.players.slice(1).map((player) => player.name)).size, 3);
     let view = await ok(store, { action: 'start', roomId: created.id, dealer: 1, ...A });
     let guard = 0;
     while (view.state && view.state.phase !== 'gameOver') {
@@ -229,7 +231,7 @@ describe('servidor de salas: solo contra bots', () => {
 
       if (state.game !== 'casino') throw new Error('juego inesperado');
       const humanTurn = state.phase === 'playing' && state.turn === 0;
-      const humanDeals = state.phase === 'roundEnd' && (state.dealer + 1) % 2 === 0;
+      const humanDeals = state.phase === 'roundEnd' && (state.dealer + 1) % created.players.length === 0;
       if (humanTurn) {
         // El humano de la prueba juega lo que elegiría el bot, pero pasando por el servidor.
         const move = chooseCasinoMove(full as Parameters<typeof chooseCasinoMove>[0]);

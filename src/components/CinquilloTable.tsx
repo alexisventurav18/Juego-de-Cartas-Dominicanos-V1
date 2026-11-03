@@ -44,21 +44,22 @@ export default function CinquilloTable({ state, seat, onMove }: CinquilloTablePr
   })();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <SeatBar
         players={state.players}
         mySeat={seat}
         turn={finished ? null : state.turn}
+        handCounts={state.hands.map((hand) => hand.length)}
         details={(s) => `${state.hands[s].length} ${state.hands[s].length === 1 ? 'carta' : 'cartas'}`}
       />
 
-      <section className="rounded-3xl bg-emerald-800 p-4 shadow-inner sm:p-6">
+      <section className="rounded-3xl bg-emerald-800 p-3 shadow-inner sm:p-6">
         <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-emerald-200/80">Mesa</p>
         <div className="overflow-x-auto pb-2">
           <div className="mx-auto flex min-w-max flex-col gap-2">
             {AMERICAN_SUITS.map((suit) => (
-              <div key={suit} className="flex items-center gap-3">
-                <span className="flex w-20 shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-100/80">
+              <div key={suit} className="flex items-center gap-2 sm:gap-3">
+                <span className="flex w-16 shrink-0 items-center gap-1.5 text-xs font-medium text-emerald-100/80 sm:w-20">
                   <span aria-hidden>{suitSymbol(suit)}</span>
                   {SUIT_LABEL[suit]}
                 </span>
@@ -104,7 +105,7 @@ export default function CinquilloTable({ state, seat, onMove }: CinquilloTablePr
               type="button"
               onClick={() => onMove({ type: 'pass' })}
               disabled={!myTurn || playable.length > 0}
-              className="rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-800 transition hover:border-stone-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 rounded-xl border border-stone-300 bg-white px-5 py-2.5 text-sm font-medium text-stone-800 transition hover:border-stone-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Pasar turno
             </button>

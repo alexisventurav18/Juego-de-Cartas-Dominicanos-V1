@@ -1,6 +1,7 @@
 import { type CasinoState, createCasinoGame } from './casino';
 import { type CinquilloState, createCinquilloGame } from './cinquillo';
 import { type BurakoState, createBurakoGame } from './burako';
+import { randomInt } from './cards';
 import type { GameId, Player } from './shared';
 
 export type GameState = CasinoState | CinquilloState | BurakoState;
@@ -25,7 +26,7 @@ export const GAMES: Record<GameId, GameInfo> = {
     playerCounts: [2, 4],
     playerCountLabel: '2 o 4 jugadores (en parejas)',
     maxPlayers: 4,
-    soloPlayerCount: 2,
+    soloPlayerCount: 4,
     quickRules: [
       'Captura: juega una carta de tu mano y llévate cartas de la mesa del mismo valor, o cuyo total sea ese valor.',
       'Suma: junta tu carta con cartas de la mesa para formar una suma, y llévatela después con otra carta de ese valor.',
@@ -91,10 +92,22 @@ export function createGameState(game: GameId, players: Player[], dealer?: number
 }
 
 export function createSoloPlayers(game: GameId, human: Player): Player[] {
-  const bots = Array.from({ length: GAMES[game].soloPlayerCount - 1 }, (_, i) => ({
-    id: `bot-${i + 1}`,
-    name: `Bot ${i + 1}`,
-  }));
+  const botNames = [
+    'Santiago',
+    'Valentina',
+    'Mateo',
+    'Camila',
+    'Sebastián',
+    'Luciana',
+    'Gabriel',
+    'Daniela',
+  ];
+  const availableNames = [...botNames];
+  const bots = Array.from({ length: GAMES[game].soloPlayerCount - 1 }, (_, i) => {
+    const nameIndex = randomInt(availableNames.length);
+    const [name] = availableNames.splice(nameIndex, 1);
+    return { id: `bot-${i + 1}`, name };
+  });
   return [human, ...bots];
 }
 

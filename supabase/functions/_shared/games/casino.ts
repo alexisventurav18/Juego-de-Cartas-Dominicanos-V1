@@ -1,6 +1,7 @@
 import { americanDeck, type Card, randomInt, shuffle } from './cards.ts';
 import {
   type Build,
+  captureValues,
   captureOptions,
   convertValue,
   expansionValue,
@@ -66,6 +67,14 @@ export interface CaptureGroup {
   pairsRank: number | null;
 }
 
+/** Información pública de la última captura para que todos puedan ver la carta jugada. */
+export interface CasinoCaptureNotice {
+  seat: number;
+  card: Card;
+  capturedCount: number;
+  virao: boolean;
+}
+
 export interface CasinoState {
   game: 'casino';
   phase: 'playing' | 'roundEnd' | 'gameOver';
@@ -82,6 +91,7 @@ export interface CasinoState {
   dealer: number;
   roundNo: number;
   lastCapturer: number | null;
+  lastCapture: CasinoCaptureNotice | null;
   summary: RoundSummary | null;
   winnerTeam: number | null;
 }
@@ -111,6 +121,7 @@ export function createCasinoGame(players: Player[], dealer?: number): CasinoStat
     dealer: dealer ?? randomInt(players.length),
     roundNo: 0,
     lastCapturer: null,
+    lastCapture: null,
     summary: null,
     winnerTeam: null,
   });
@@ -156,6 +167,7 @@ function dealRound(state: CasinoState): CasinoState {
     turn: (dealer + 1) % n,
     roundNo: state.roundNo + 1,
     lastCapturer: null,
+    lastCapture: null,
     summary: null,
   };
 }
@@ -311,7 +323,18 @@ function collectTable(
     }
   }
   captured[team] = [...captured[team], { cards, virao: viraoMark, pairsRank }];
-  return advanceTurn({ ...state, table, builds, captured, viraos, lastCapturer: seat }, seat);
+  return advanceTurn(
+    {
+      ...state,
+      table,
+      builds,
+      captured,
+      viraos,
+      lastCapturer: seat,
+      lastCapture: { seat, card: cards[0], capturedCount: Math.max(0, cards.length - 1), virao: viraoMark },
+    },
+    seat,
+  );
 }
 
 function playCard(
@@ -364,7 +387,10 @@ function buildCombination(
     };
   }
   const merge = mergeId === undefined ? null : (state.table.find((c) => c.id === mergeId) ?? null);
-  if (mergeId !== undefined && (kind !== 'sum' || merge === null || merge.rank !== value || tableIds.includes(mergeId))) {
+  if (
+    mergeId !== undefined &&
+    (kind !== 'sum' || merge === null || !captureValues(merge).includes(value) || tableIds.includes(mergeId))
+  ) {
     return { error: 'Esa carta de la mesa no puede unirse a esta sumatoria.' };
   }
   const merged = merge ? [merge] : [];
@@ -538,7 +564,7 @@ export function applyCasinoMove(
 
   const forced = isCaptureForced(state, seat);
   const hands = state.hands.map((hand, i) => (i === seat ? hand.filter((c) => c.id !== card.id) : hand));
-  const next: CasinoState = { ...state, hands };
+  const next: CasinoState = { ...state, hands, lastCapture: null };
 
   if (move.type === 'play') return playCard(next, seat, card, move.captureIds, forced);
   if (move.type === 'build') return buildCombination(next, seat, card, move.kind, move.tableIds, move.mergeId);

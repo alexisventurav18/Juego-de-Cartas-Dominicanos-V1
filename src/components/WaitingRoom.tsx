@@ -20,7 +20,19 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(room.code);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(room.code);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = room.code;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
