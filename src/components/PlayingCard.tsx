@@ -70,7 +70,7 @@ export default function PlayingCard({
 
   const face = (
     <div
-      className={`relative flex flex-col justify-between border bg-white p-1 text-left shadow-sm sm:p-1.5 ${SIZE_CLASS[size]} ${
+      className={`casino-card-face relative flex flex-col justify-between border bg-white p-1 text-left shadow-sm sm:p-1.5 ${SIZE_CLASS[size]} ${
         isJoker
           ? 'border-amber-300 bg-gradient-to-br from-amber-100 to-white'
           : 'border-stone-200'
