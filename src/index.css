@@ -4,7 +4,7 @@
 
 html {
   min-width: 320px;
-  background: #f5f5f4;
+  background: #1e0e05;
 }
 
 body {
@@ -210,145 +210,15 @@ button,
   animation: virao-reveal 900ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Arena 2D para Casino: una superficie única que funciona en móvil y escritorio. */
-.casino-arena {
-  position: relative;
-  isolation: isolate;
-  border-radius: 1.75rem;
-  padding: 0.5rem;
-  background:
-    radial-gradient(circle at 50% 42%, rgb(255 255 255 / 0.16), transparent 28%),
-    linear-gradient(145deg, #123b62 0%, #0b2744 48%, #071a31 100%);
-  box-shadow: 0 18px 50px rgb(15 23 42 / 0.2), inset 0 1px rgb(255 255 255 / 0.18);
-}
-
-.casino-arena > * {
-  position: relative;
-  z-index: 1;
-}
-
-.casino-seat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-  margin: 0.35rem 0 0.6rem;
-}
-
-.casino-seat-card {
-  position: relative;
-  min-width: 0;
-  min-height: 4.2rem;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.25);
-  border-radius: 1rem;
-  padding: 0.45rem 0.55rem 0.4rem 2.6rem;
-  background: linear-gradient(145deg, rgb(255 255 255 / 0.96), rgb(224 242 254 / 0.9));
-  box-shadow: 0 5px 14px rgb(2 24 50 / 0.2);
-}
-
-.casino-seat-card.border-amber-400 {
-  border-color: #fbbf24;
-  background: linear-gradient(145deg, #fff7c2, #fde68a);
-  box-shadow: 0 0 0 2px rgb(251 191 36 / 0.38), 0 7px 18px rgb(2 24 50 / 0.25);
-}
-
-.casino-seat-avatar {
-  position: absolute;
-  left: 0.5rem;
-  top: 50%;
-  display: grid;
-  width: 1.7rem;
-  height: 1.7rem;
-  transform: translateY(-50%);
-  place-items: center;
-  border: 2px solid rgb(255 255 255 / 0.9);
-  border-radius: 0.65rem;
-  background: linear-gradient(145deg, #22c55e, #047857);
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 800;
-  box-shadow: 0 3px 8px rgb(4 120 87 / 0.35);
-}
-
-.casino-seat-stats {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem;
-  margin-top: 0.25rem;
-  overflow: hidden;
-  color: #475569;
-  font-size: 0.55rem;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.casino-scoreboard-shell {
-  margin-bottom: 0.45rem;
-}
-
-.casino-table-surface {
-  min-height: 13rem;
-  border: 2px solid rgb(125 211 252 / 0.5);
-  background:
-    radial-gradient(ellipse at center, rgb(34 197 94 / 0.5), transparent 62%),
-    linear-gradient(145deg, #087f70 0%, #075b61 52%, #06455c 100%);
-  box-shadow: inset 0 0 0 6px rgb(2 44 52 / 0.18), inset 0 0 40px rgb(1 35 50 / 0.36), 0 12px 25px rgb(2 24 50 / 0.26);
-}
-
-.casino-table-layout {
-  display: grid;
-  grid-template-columns: minmax(3.5rem, 4.5rem) minmax(0, 1fr);
-  align-items: start;
-  gap: 0.25rem;
-  width: 100%;
-}
-
-.casino-deck-column {
-  position: sticky;
-  top: 0.5rem;
-}
-
-.casino-table-content {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  align-items: end;
-  justify-items: center;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.casino-build {
-  max-width: 100%;
-}
-
-.casino-build-label {
-  white-space: nowrap;
-}
-
-.casino-build-label-visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-.casino-build-label-hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.casino-build-label-full {
-  max-width: none;
-}
-
+/* Insignia de los grupos de la mesa ("Par 5", "Suma 14"): aparece con un pequeño salto. */
 @keyframes combo-label-pop {
   0% {
     opacity: 0;
-    transform: translateY(4px) scale(0.82);
+    transform: translateY(4px) scale(0.8);
   }
   45% {
     opacity: 1;
-    transform: translateY(-2px) scale(1.05);
+    transform: translateY(-2px) scale(1.03);
   }
   100% {
     opacity: 1;
@@ -357,161 +227,14 @@ button,
 }
 
 .animate-combo-label {
-  animation: combo-label-pop 700ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: combo-label-pop 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.casino-actions-grid {
-  align-items: stretch;
-}
-
-.casino-action-button {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid transparent;
-  border-radius: 0.7rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  outline: none;
-}
-
-.casino-action-button:hover:not(:disabled),
-.casino-action-button:focus-visible:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.04);
-  box-shadow: 0 4px 10px rgb(2 24 50 / 0.18);
-}
-
-.casino-action-button:disabled {
-  cursor: not-allowed;
-  border-color: rgb(148 163 184 / 0.24);
-  background: rgb(203 213 225 / 0.45);
-  color: rgb(100 116 139 / 0.7);
-}
-
-.casino-action-capture {
-  border-color: #34d399;
-  background: #047857;
-  color: white;
-}
-
-.casino-action-raise,
-.casino-action-convert {
-  border-color: #fbbf24;
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.casino-action-build {
-  border-color: #67e8f9;
-  background: #cffafe;
-  color: #155e75;
-}
-
-.casino-action-drop {
-  border-color: rgb(148 163 184 / 0.5);
-  background: rgb(248 250 252 / 0.92);
-  color: #334155;
-}
-
-.casino-table-surface::before {
-  position: absolute;
-  inset: 15% 8%;
-  z-index: -1;
-  border: 1px solid rgb(167 243 208 / 0.22);
-  border-radius: 50%;
-  content: '';
-  pointer-events: none;
-  transform: rotate(-3deg);
-}
-
+/* Estilo de las caras de carta compartido por los juegos que usan PlayingCard. */
 .casino-card-face {
   border-color: rgb(255 255 255 / 0.85);
   border-radius: 0.75rem;
   box-shadow: 0 5px 10px rgb(2 24 50 / 0.24), inset 0 0 0 1px rgb(15 23 42 / 0.05);
-}
-
-.casino-action-panel {
-  border-color: rgb(125 211 252 / 0.4);
-}
-
-@media (min-width: 640px) {
-  .casino-arena {
-    border-radius: 2.25rem;
-    padding: 0.85rem;
-  }
-
-  .casino-seat-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.65rem;
-    margin: 0.5rem 0 0.9rem;
-  }
-
-  .casino-seat-card {
-    min-height: 4.7rem;
-    border-radius: 1.25rem;
-    padding-left: 3rem;
-  }
-
-  .casino-seat-avatar {
-    left: 0.75rem;
-    width: 2rem;
-    height: 2rem;
-  }
-
-  .casino-table-surface {
-    min-height: 18rem;
-  }
-
-  .casino-table-layout {
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    gap: 0.8rem;
-  }
-
-  .casino-table-content {
-    gap: 0.6rem;
-  }
-}
-
-@media (max-width: 639px) {
-  .casino-scoreboard-shell {
-    display: none;
-  }
-
-  .casino-table-layout {
-    position: relative;
-    display: block;
-    padding-top: 6.25rem;
-  }
-
-  .casino-deck-column {
-    position: absolute;
-    top: 0;
-    left: 0.1rem;
-    z-index: 2;
-    width: 3.5rem;
-  }
-
-  .casino-table-content {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.35rem;
-    width: 100%;
-  }
-
-  .casino-table-content .casino-card-face {
-    width: clamp(2.7rem, 17vw, 4rem);
-    height: clamp(4.05rem, 25.5vw, 6rem);
-    aspect-ratio: 2 / 3;
-  }
-
-  .casino-table-content .casino-card-face .text-4xl {
-    font-size: clamp(1.5rem, 8vw, 2.25rem);
-  }
-
-  .casino-seat-card {
-    min-height: 4.7rem;
-  }
 }
 
 @keyframes deck-count-pulse {
@@ -531,4 +254,227 @@ button,
 
 .animate-deck-count {
   animation: deck-count-pulse 220ms ease-out;
+}
+
+/*
+ * Abanico de cartas solapadas en una sola fila (la mano de El Cagao). Cada carta se corre lo justo
+ * para que todas quepan en el ancho de la pantalla, sin pasar de un solape mínimo legible (12px) ni
+ * separarse más de 6px cuando sobra espacio. Variables: --fan-h (alto de carta), --fan-n (cantidad).
+ */
+.fan {
+  --h: var(--fan-h);
+}
+
+@media (min-width: 640px) {
+  .fan {
+    --h: var(--fan-h-sm, var(--fan-h));
+  }
+}
+
+.fan > * + * {
+  margin-left: calc(
+    var(--h) * -0.714 + clamp(12px, (100vw - 16px - var(--h) * 0.714) / (var(--fan-n) - 1), var(--h) * 0.714 + 6px)
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* El Cagao: mesa artesanal dominicana                                 */
+/* ------------------------------------------------------------------ */
+
+/* Riel del marco: madera oscura con veta. */
+.wood-rail {
+  background-color: #5b3416;
+  background-image:
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.18) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(90deg, rgb(255 210 150 / 0.07) 0 2px, transparent 2px 13px),
+    linear-gradient(180deg, #7a4a22, #4a2a10);
+  box-shadow: inset 0 0 0 1px rgb(255 214 140 / 0.25), 0 2px 6px rgb(0 0 0 / 0.5);
+}
+
+/* Bloque tallado (esquinas, medallones y placas de jugador). */
+.wood-block {
+  background: radial-gradient(circle at 30% 25%, #9a6230, #5a3416 72%);
+  box-shadow:
+    inset 0 0 0 2px rgb(255 214 140 / 0.35),
+    inset 0 -4px 8px rgb(0 0 0 / 0.45),
+    0 3px 8px rgb(0 0 0 / 0.5);
+}
+
+/* Tablero central: madera cálida con veta; el 3D lo pone la perspectiva del contenedor. */
+.cagao-board {
+  background-color: #8a5a2b;
+  background-image:
+    repeating-linear-gradient(92deg, rgb(60 30 10 / 0.2) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(88deg, rgb(255 225 170 / 0.09) 0 2px, transparent 2px 12px),
+    radial-gradient(ellipse at 50% 40%, #b57a3c 0%, #8a5a2b 55%, #6a4220 100%);
+  box-shadow:
+    0 18px 28px rgb(0 0 0 / 0.55),
+    inset 0 0 0 3px #5b3416,
+    inset 0 0 40px rgb(0 0 0 / 0.35);
+}
+
+/* Mientras arrastras un par, el tablero se enciende como zona de suelta. */
+.cagao-board-drop {
+  box-shadow:
+    0 18px 28px rgb(0 0 0 / 0.55),
+    inset 0 0 0 3px #f6c453,
+    inset 0 0 46px rgb(255 205 90 / 0.5);
+}
+
+/* Brillo dorado que late (solo opacity y transform). */
+.gold-glow {
+  background: radial-gradient(closest-side, rgb(255 214 90 / 0.85), rgb(255 214 90 / 0.45) 55%, rgb(255 214 90 / 0) 100%);
+  animation: glow-pulse 1.3s ease-in-out infinite;
+}
+
+.turn-glow {
+  box-shadow: 0 0 0 2px rgb(255 214 90 / 0.95), 0 0 14px 4px rgb(255 200 60 / 0.55);
+  animation: turn-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes turn-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* Carta sin pareja que se toca en la fase de pares: se sacude un instante. */
+.card-wiggle {
+  animation: card-wiggle 320ms ease-in-out;
+}
+
+@keyframes card-wiggle {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-4px) rotate(-3deg); }
+  75% { transform: translateX(4px) rotate(3deg); }
+}
+
+/* Un par recién bajado cae sobre la pila. */
+.pile-land {
+  animation: pile-land 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes pile-land {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.orientation-phone {
+  animation: phone-turn 2.6s ease-in-out infinite;
+}
+
+@keyframes phone-turn {
+  0%, 15% { transform: rotate(0deg); }
+  55%, 85% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gold-glow,
+  .turn-glow,
+  .card-wiggle,
+  .pile-land,
+  .orientation-phone {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Tema madera compartido (Casino, Tres y Dos, lobby y salas)          */
+/* Misma paleta y mismos acabados que la mesa de El Cagao.             */
+/* ------------------------------------------------------------------ */
+
+/* Fondo de pantalla completa: madera muy oscura con viñeta cálida. */
+.wood-stage {
+  background-color: #2a160a;
+  background-image: radial-gradient(ellipse at 50% 35%, #4a2a12, #1e0e05 75%);
+  color: #fff7e6;
+}
+
+/* Panel oscuro para ventanas, resultados y avisos. */
+.wood-panel {
+  background: linear-gradient(180deg, #4a2a12, #2f1809);
+  color: #fff3dc;
+  border-radius: 1rem;
+  box-shadow:
+    0 0 0 2px rgb(255 214 140 / 0.4),
+    0 18px 40px rgb(0 0 0 / 0.6),
+    inset 0 0 30px rgb(0 0 0 / 0.35);
+}
+
+/* Fondo del tablero de madera (sin inclinar): el mismo que usa El Cagao, para mesas con contenido variable. */
+.wood-board-flat {
+  background-color: #8a5a2b;
+  background-image:
+    repeating-linear-gradient(92deg, rgb(60 30 10 / 0.2) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(88deg, rgb(255 225 170 / 0.09) 0 2px, transparent 2px 12px),
+    radial-gradient(ellipse at 50% 40%, #b57a3c 0%, #8a5a2b 55%, #6a4220 100%);
+  box-shadow:
+    0 14px 24px rgb(0 0 0 / 0.5),
+    inset 0 0 0 3px #5b3416,
+    inset 0 0 40px rgb(0 0 0 / 0.35);
+}
+
+/* Chips de la barra superior (salir, contadores, turno). */
+.wood-chip {
+  background: rgb(0 0 0 / 0.4);
+  color: #fff7e6;
+  box-shadow: inset 0 0 0 1px rgb(253 230 138 / 0.3);
+}
+
+.wood-chip-turn {
+  background: #fbbf24;
+  color: #1c1208;
+}
+
+/* Botones: dorado (acción principal), hoja de cacao (acciones de combinar) y madera (secundaria). */
+.btn-gold {
+  background-image: linear-gradient(180deg, #fcd34d, #f59e0b);
+  color: #1c1208;
+  box-shadow: 0 0 0 1px rgb(254 243 199 / 0.6), 0 2px 5px rgb(0 0 0 / 0.45);
+}
+
+.btn-leaf {
+  background-image: linear-gradient(180deg, #7bb544, #4a7a22);
+  color: #f6ffe8;
+  box-shadow: 0 0 0 1px rgb(190 242 100 / 0.4), 0 2px 5px rgb(0 0 0 / 0.45);
+}
+
+.btn-wood {
+  background: rgb(0 0 0 / 0.45);
+  color: #fff7e6;
+  box-shadow: 0 0 0 1px rgb(253 230 138 / 0.4), 0 2px 5px rgb(0 0 0 / 0.35);
+}
+
+/* Altura de las cartas de CartaUI (mano y mesa), con los mismos topes que antes. */
+.cu-mano {
+  --cu-h: min(var(--mano-h, 15dvh), 10rem);
+}
+
+.cu-mesa {
+  --cu-h: min(var(--mesa-h, 12dvh), 9rem);
+}
+
+@media (min-width: 640px) {
+  .cu-mano {
+    --cu-h: min(var(--mano-h-sm, 18dvh), 10rem);
+  }
+
+  .cu-mesa {
+    --cu-h: min(var(--mesa-h-sm, 15dvh), 9rem);
+  }
+}
+
+/* Carta elegida: se eleva con aro dorado, igual que al arrastrar en El Cagao. */
+.card-picked {
+  transform: translateY(-0.75rem);
+  box-shadow: 0 0 0 2px #facc15, 0 10px 16px rgb(0 0 0 / 0.55);
+}
+
+.card-playable {
+  box-shadow: 0 0 0 2px rgb(190 242 100 / 0.8), 0 0 10px rgb(190 242 100 / 0.45);
 }

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import Lobby from '@/components/Lobby';
 import RoomView from '@/components/RoomView';
-import OfflineBotGame, { type OfflineBotMode } from '@/components/OfflineBotGame';
+import OfflineBotGame, { type OfflineSetup } from '@/components/OfflineBotGame';
 import { getStoredRoomId, storeRoomId } from '@/lib/identity';
 
 export default function App() {
   const [roomId, setRoomId] = useState<string | null>(getStoredRoomId);
-  const [offlineGame, setOfflineGame] = useState<{ mode: OfflineBotMode; playerName: string } | null>(null);
+  const [offlineGame, setOfflineGame] = useState<OfflineSetup | null>(null);
 
   const enterRoom = (id: string) => {
     setOfflineGame(null);
@@ -19,10 +19,10 @@ export default function App() {
     setRoomId(null);
   };
 
-  const startOffline = (mode: OfflineBotMode, playerName: string) => {
+  const startOffline = (setup: OfflineSetup) => {
     storeRoomId(null);
     setRoomId(null);
-    setOfflineGame({ mode, playerName });
+    setOfflineGame(setup);
   };
 
   if (offlineGame) {
@@ -30,7 +30,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900 antialiased">
+    <div className="wood-stage min-h-dvh antialiased">
       {roomId ? (
         <RoomView key={roomId} roomId={roomId} onLeave={leaveRoom} />
       ) : (
