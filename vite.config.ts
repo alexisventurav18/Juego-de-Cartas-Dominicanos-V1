@@ -4,6 +4,8 @@ import { fileURLToPath, URL } from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Rutas relativas: necesario para que la web funcione dentro de un APK o abierta desde archivos locales.
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {

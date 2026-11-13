@@ -1,5 +1,5 @@
 {
-  "name": "vite-react-typescript-starter",
+  "name": "cartas-dominicanas",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,13 +11,20 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "tsx --test tests/*.test.ts",
     "simulate": "tsx scripts/simulate.ts",
-    "sync:functions": "tsx scripts/syncFunctions.ts"
+    "sync:functions": "tsx scripts/syncFunctions.ts",
+    "android:add": "cap add android",
+    "android:assets": "capacitor-assets generate --android",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
@@ -34,6 +41,8 @@
     "tsx": "^4.19.0",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^7.3.7"
+    "vite": "^7.3.7",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/assets": "^3.0.5"
   }
 }

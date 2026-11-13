@@ -1,6 +1,6 @@
 # Juego de Cartas Dominicanos
 
-React + TypeScript + Vite + Tailwind, con Supabase para salas y multijugador. Juegos: Casino, Cinquillo y Burako.
+React + TypeScript + Vite + Tailwind, con Supabase para salas y multijugador. Juegos: Casino, Tres y Dos y El Cagao.
 
 ## Comandos
 
@@ -9,7 +9,7 @@ npm install
 npm run dev        # desarrollo
 npm run typecheck  # tipos
 npm test           # pruebas de reglas y bots (tsx + node:test)
-npm run simulate -- casino 600   # bot nuevo vs bot original (casino | cinquillo | burako)
+npm run simulate -- casino 600   # bot nuevo vs bot original (casino | tresydos | cagao)
 ```
 
 ## Casino: regla de cierre obligatorio (17 puntos)
@@ -36,7 +36,7 @@ Decisiones donde el reglamento no decía nada:
 ## Bots
 
 - **Casino** (`src/games/casinoBot.ts`): evalúa cada jugada legal por ganancia inmediata, potencial de combinaciones propias y pérdida esperada por lo que el rival podría llevarse (probabilidades con las cartas no vistas). Conoce la regla de cierre. Solo usa información pública: nunca mira la mano de los demás.
-- **Cinquillo y Burako** (`src/games/bots.ts`): heurísticas más simples.
+- **Tres y Dos** (`src/games/tresYDos.ts`): el bot calcula qué cartas desconocidas completarían su 3 y 2 y roba y bota para maximizarlas. **El Cagao** (`src/games/cagao.ts`): el bot jala una carta al azar de la mano oculta del rival, con una pausa para que se vea la jugada.
 
 ## Arquitectura de las partidas (servidor autoritativo)
 
@@ -45,7 +45,7 @@ Los navegadores **no leen ni escriben** las partidas directamente. Todo pasa por
 - `rooms` (tabla pública): código, juego, estado de la sala, jugadores y versión. Sin cartas. Sigue emitiendo cambios por Realtime solo para avisar "hay novedades".
 - `room_secrets` (tabla privada, sin permisos para `anon`): estado completo de la partida y hash de la clave de cada jugador. Solo la función la toca.
 - Cada jugador tiene un id (público) y una **clave secreta** guardada en su navegador. El servidor guarda solo el hash. Conocer el id de otro jugador no sirve para suplantarlo.
-- Cada petición devuelve la **vista del jugador**: su mano completa y, de los demás, solo cuántas cartas tienen (`src/games/view.ts`). El orden del mazo y los muertos de Burako tampoco salen del servidor.
+- Cada petición devuelve la **vista del jugador**: su mano completa y, de los demás, solo cuántas cartas tienen (`src/games/view.ts`). El orden del mazo tampoco sale del servidor, y en El Cagao la carta que alguien jala solo la ve quien la jaló (salvo que forme un par o sea El Cagao, que son públicos).
 - Los bots los calcula el servidor: el navegador del primer humano solo pide "avanza un turno" (`tick`).
 - Las actualizaciones usan `apply_room_update`, que cambia `rooms` y `room_secrets` en una sola transacción y solo si la versión coincide.
 
