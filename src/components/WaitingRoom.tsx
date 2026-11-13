@@ -42,17 +42,17 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6 md:grid-cols-[1fr_1.2fr]">
-      <div className="flex flex-col justify-between gap-6 rounded-2xl bg-emerald-800 p-6 text-white shadow-lg">
+      <div className="flex flex-col justify-between gap-6 wood-panel p-6">
         <div className="space-y-2">
-          <p className="text-xs uppercase tracking-widest text-emerald-200">Sala de {info.name}</p>
-          <p className="text-sm text-emerald-100">Comparte este código con tus amigos para que entren.</p>
+          <p className="text-sm font-bold text-amber-200">Sala de {info.name}</p>
+          <p className="text-sm text-amber-100/85">Comparte este código con tus amigos para que entren.</p>
         </div>
         <div className="space-y-3">
-          <p className="font-mono text-4xl font-semibold tracking-[0.35em] text-amber-200">{room.code}</p>
+          <p className="font-mono text-4xl font-semibold tracking-[0.35em] text-amber-300">{room.code}</p>
           <button
             type="button"
             onClick={copyCode}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+            className="inline-flex items-center gap-2 btn-wood inline-flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-transform active:scale-95"
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? 'Código copiado' : 'Copiar código'}
@@ -60,10 +60,10 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
         </div>
       </div>
 
-      <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div className="wood-panel space-y-5 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-900">Jugadores</h2>
-          <span className="inline-flex items-center gap-1.5 text-sm text-stone-500">
+          <h2 className="text-lg font-extrabold text-amber-50">Jugadores</h2>
+          <span className="inline-flex items-center gap-1.5 text-sm text-amber-100/70">
             <Users className="h-4 w-4" />
             {room.players.length} de {info.maxPlayers}
           </span>
@@ -76,14 +76,14 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
           {Array.from({ length: slots }, (_, i) => (
             <li
               key={`empty-${i}`}
-              className="rounded-xl border border-dashed border-stone-300 px-4 py-3 text-sm text-stone-400"
+              className="rounded-xl border border-dashed border-amber-200/30 px-4 py-3 text-sm text-amber-100/50"
             >
               Esperando jugador...
             </li>
           ))}
         </ul>
 
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-amber-100/70">
           {canStart
             ? 'Ya hay suficientes jugadores. Cuando estén listos, empiecen.'
             : `Para empezar se necesitan ${info.playerCountLabel.toLowerCase()}.`}
@@ -94,13 +94,13 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
             type="button"
             onClick={onStart}
             disabled={!canStart || busy}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600"
+            className="btn-gold flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-extrabold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Play className="h-4 w-4" />
             {busy ? 'Repartiendo...' : 'Empezar partida'}
           </button>
         ) : (
-          <p className="rounded-xl bg-stone-100 px-4 py-3 text-center text-sm text-stone-600">
+          <p className="rounded-xl bg-black/30 px-4 py-3 text-center text-sm text-amber-100/80">
             Esperando a que {room.players[0]?.name} empiece la partida.
           </p>
         )}
@@ -111,12 +111,12 @@ export default function WaitingRoom({ room, myId, busy, onStart }: WaitingRoomPr
 
 function PlayerRow({ player, index, isMe }: { player: Player; index: number; isMe: boolean }) {
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-xs font-semibold text-stone-500 shadow-sm">
+    <li className="flex items-center gap-3 rounded-xl bg-black/25 px-4 py-3 ring-1 ring-amber-200/15">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full wood-block text-xs font-bold text-amber-100">
         {index + 1}
       </span>
-      <span className="flex-1 truncate text-sm font-medium text-stone-900">{player.name}</span>
-      {isMe && <span className="text-xs font-medium text-emerald-700">Tú</span>}
+      <span className="flex-1 truncate text-sm font-bold text-amber-50">{player.name}</span>
+      {isMe && <span className="text-xs font-bold text-lime-400">Tú</span>}
     </li>
   );
 }

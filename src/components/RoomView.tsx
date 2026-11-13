@@ -2,16 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, LoaderCircle, RotateCcw, Wifi, WifiOff } from 'lucide-react';
 import { canStartGame, GAMES, isGameFinished } from '@/games';
 import type { CasinoMove } from '@/games/casino';
-import type { CinquilloMove } from '@/games/cinquillo';
-import type { BurakoMove } from '@/games/burako';
+import type { TresYDosMove } from '@/games/tresYDos';
+import type { CagaoMove } from '@/games/cagao';
 import { botTickDelay } from '@/games/bots';
 import { isBotPlayer } from '@/games/shared';
 import { getPlayerId } from '@/lib/identity';
 import { botTick, fetchRoom, requestStart, type RoomConnectionStatus, type RoomRow, sendMove, subscribeToRoom } from '@/lib/rooms';
 import WaitingRoom from './WaitingRoom';
 import CasinoTable from './CasinoTable';
-import CinquilloTable from './CinquilloTable';
-import BurakoTable from './BurakoTable';
+import TresYDosTable from './TresYDosTable';
+import CagaoTable from './CagaoTable';
 import CoinToss from './CoinToss';
 
 interface RoomViewProps {
@@ -118,7 +118,7 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
     );
   }
   if (!room) {
-    return <p className="py-20 text-center text-sm text-stone-500">Cargando sala...</p>;
+    return <p className="wood-stage min-h-dvh py-20 text-center text-sm text-amber-100/80">Cargando sala...</p>;
   }
 
   const seat = room.players.findIndex((p) => p.id === playerId);
@@ -159,20 +159,65 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
   const state = room.state;
   const info = GAMES[room.game];
 
+  // Los tres juegos ocupan toda la pantalla: sale, estado de conexión y avisos van dentro de su barra superior.
+  if (state !== null && room.status !== 'waiting') {
+    const tableProps = {
+      seat,
+      onLeave,
+      roomLabel: `${info.name} · Sala ${room.code}`,
+      connection,
+      notice,
+      resultFooter:
+        isGameFinished(state) && seat === 0 ? (
+          <button
+            type="button"
+            onClick={startGame}
+            className="btn-gold inline-flex min-h-[44px] items-center gap-2 rounded-lg px-5 py-2 text-sm font-extrabold active:scale-95"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Jugar otra partida
+          </button>
+        ) : undefined,
+    };
+    return (
+      <div className={`transition ${saving ? 'pointer-events-none opacity-80' : ''}`}>
+        {state.game === 'casino' ? (
+          <CasinoTable
+            state={state}
+            {...tableProps}
+            onMove={(move: CasinoMove) => void run(() => sendMove(room.id, move))}
+          />
+        ) : state.game === 'tresydos' ? (
+          <TresYDosTable
+            state={state}
+            {...tableProps}
+            onMove={(move: TresYDosMove) => void run(() => sendMove(room.id, move))}
+          />
+        ) : (
+          <CagaoTable
+            state={state}
+            {...tableProps}
+            onMove={(move: CagaoMove) => void run(() => sendMove(room.id, move))}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-6 sm:py-8">
+    <div className="wood-stage min-h-dvh"><div className="mx-auto w-full max-w-6xl px-3 py-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:py-8">
       <header className="mb-3 flex items-center justify-between gap-3 sm:mb-6 sm:gap-4">
         <button
           type="button"
           onClick={onLeave}
-          className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-medium text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 sm:gap-2 sm:px-3 sm:text-sm"
+          className="wood-chip inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition-transform active:scale-95 sm:gap-2 sm:text-sm"
         >
           <ArrowLeft className="h-4 w-4" />
           Salir de la sala
         </button>
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-widest text-stone-500 sm:text-xs">{info.name}</p>
-          <p className="font-mono text-base font-semibold tracking-[0.3em] text-stone-900 sm:text-lg">{room.code}</p>
+          <p className="text-xs font-bold text-amber-200/80">{info.name}</p>
+          <p className="font-mono text-base font-semibold tracking-[0.3em] text-amber-50 sm:text-lg">{room.code}</p>
         </div>
       </header>
 
@@ -181,10 +226,10 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
         aria-live="polite"
         className={`mb-3 flex items-center justify-center gap-2 rounded-xl px-3 py-1.5 text-[11px] font-medium sm:mb-5 sm:px-4 sm:py-2 sm:text-xs ${
           connection === 'connected'
-            ? 'bg-emerald-50 text-emerald-700'
+            ? 'bg-lime-600/25 text-lime-200 ring-1 ring-lime-400/40'
             : connection === 'offline'
-              ? 'bg-rose-50 text-rose-700'
-              : 'bg-amber-50 text-amber-700'
+              ? 'bg-rose-700/40 text-rose-100 ring-1 ring-rose-300/40'
+              : 'bg-amber-500/25 text-amber-100 ring-1 ring-amber-300/40'
         }`}
       >
         {connection === 'connected' && <Wifi className="h-3.5 w-3.5" />}
@@ -194,54 +239,29 @@ export default function RoomView({ roomId, onLeave }: RoomViewProps) {
       </div>
 
       {notice && (
-        <p role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700 shadow-sm">
+        <p role="alert" className="mb-5 rounded-xl bg-rose-700/80 px-4 py-3 text-center text-sm font-medium text-rose-50 ring-1 ring-rose-300/60">
           {notice}
         </p>
       )}
 
       {coinOpen && <CoinToss onDone={startSoloGame} />}
 
-      {state === null || room.status === 'waiting' ? (
-        <WaitingRoom room={room} myId={playerId} busy={saving} onStart={startGame} />
-      ) : (
-        <div className={`transition ${saving ? 'pointer-events-none opacity-80' : ''}`}>
-          {state.game === 'casino' && (
-            <CasinoTable state={state} seat={seat} onMove={(move: CasinoMove) => void run(() => sendMove(room.id, move))} />
-          )}
-          {state.game === 'cinquillo' && (
-            <CinquilloTable state={state} seat={seat} onMove={(move: CinquilloMove) => void run(() => sendMove(room.id, move))} />
-          )}
-          {state.game === 'burako' && (
-            <BurakoTable state={state} seat={seat} onMove={(move: BurakoMove) => void run(() => sendMove(room.id, move))} />
-          )}
-          {isGameFinished(state) && seat === 0 && (
-            <div className="mt-8 flex justify-center">
-              <button
-                type="button"
-                onClick={startGame}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 font-medium text-white shadow-sm transition hover:bg-emerald-800"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Jugar otra partida
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <WaitingRoom room={room} myId={playerId} busy={saving} onStart={startGame} />
+    </div>
     </div>
   );
 }
 
 function StatusMessage({ message, onRetry, onLeave }: { message: string; onRetry?: () => void; onLeave: () => void }) {
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-20 text-center">
-      <p className="text-stone-700">{message}</p>
+    <div className="wood-stage flex min-h-dvh flex-col items-center justify-center gap-4 px-4 py-20 text-center">
+      <p className="max-w-md text-amber-50">{message}</p>
       <div className="flex flex-wrap justify-center gap-3">
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
+            className="btn-gold min-h-[44px] rounded-lg px-5 py-2.5 text-sm font-extrabold transition-transform active:scale-95"
           >
             Reintentar
           </button>
@@ -249,7 +269,7 @@ function StatusMessage({ message, onRetry, onLeave }: { message: string; onRetry
         <button
           type="button"
           onClick={onLeave}
-          className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+          className="btn-wood min-h-[44px] rounded-lg px-5 py-2.5 text-sm font-bold transition-transform active:scale-95"
         >
           Volver al inicio
         </button>

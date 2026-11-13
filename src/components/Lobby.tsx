@@ -4,14 +4,41 @@ import { GAMES } from '@/games';
 import type { GameId } from '@/games/shared';
 import { createRoom, createSoloRoom, joinRoom } from '@/lib/rooms';
 import { getPlayerId, getStoredName, resetPlayerIdentity, storeName } from '@/lib/identity';
-import type { OfflineBotMode } from './OfflineBotGame';
+import GameCarousel from './GameCarousel';
+import type { OfflineSetup } from './OfflineBotGame';
 
 interface LobbyProps {
   onEnter: (roomId: string) => void;
-  onStartOffline: (mode: OfflineBotMode, playerName: string) => void;
+  onStartOffline: (setup: OfflineSetup) => void;
 }
 
-const GAME_ORDER: GameId[] = ['casino', 'cinquillo', 'burako'];
+const GAME_ORDER: GameId[] = ['casino', 'tresydos', 'cagao'];
+
+interface OfflineOption {
+  /** Jugadores en total, contando al humano. */
+  count: number;
+  label: string;
+}
+
+/** Tamaños de mesa que se pueden jugar sin conexión: el Casino va por equipos; los otros, por número de bots. */
+function offlineOptions(game: GameId): OfflineOption[] {
+  if (game === 'casino') {
+    return [
+      { count: 4, label: 'En equipo (3 bots)' },
+      { count: 2, label: '1 contra 1' },
+    ];
+  }
+  return GAMES[game].playerCounts.map((count) => ({ count, label: `${count - 1} bot${count === 2 ? '' : 's'}` }));
+}
+
+const inputClass =
+  'w-full rounded-xl bg-black/35 px-4 py-2.5 text-amber-50 ring-1 ring-amber-200/30 placeholder:text-amber-100/40 transition focus:outline-none focus:ring-2 focus:ring-amber-300';
+const primaryButton =
+  'btn-gold flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-extrabold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+const leafButton =
+  'btn-leaf flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+const quietButton =
+  'btn-wood flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function Lobby({ onEnter, onStartOffline }: LobbyProps) {
   const [name, setName] = useState(getStoredName);
@@ -20,9 +47,13 @@ export default function Lobby({ onEnter, onStartOffline }: LobbyProps) {
   const [showRules, setShowRules] = useState(false);
   const [busy, setBusy] = useState<'create' | 'join' | 'solo' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Tamaño de mesa elegido para jugar sin conexión, por juego (si no se tocó, el recomendado).
+  const [offlineCounts, setOfflineCounts] = useState<Partial<Record<GameId, number>>>({});
 
   const info = GAMES[game];
   const trimmedName = name.trim();
+  const options = offlineOptions(game);
+  const offlineCount = offlineCounts[game] ?? info.soloPlayerCount;
 
   const run = async (kind: 'create' | 'join' | 'solo', action: (player: { id: string; name: string }) => Promise<string>) => {
     if (!trimmedName) {
@@ -42,11 +73,9 @@ export default function Lobby({ onEnter, onStartOffline }: LobbyProps) {
     }
   };
 
-  const handleCreate = () =>
-    run('create', async (player) => (await createRoom(game, player)).id);
+  const handleCreate = () => run('create', async (player) => (await createRoom(game, player)).id);
 
-  const handleSolo = () =>
-    run('solo', async (player) => (await createSoloRoom(game, player)).id);
+  const handleSolo = () => run('solo', async (player) => (await createSoloRoom(game, player)).id);
 
   const handleJoin = (event: FormEvent) => {
     event.preventDefault();
@@ -64,206 +93,183 @@ export default function Lobby({ onEnter, onStartOffline }: LobbyProps) {
     setError(null);
   };
 
-  const startOffline = (mode: OfflineBotMode) => {
+  const startOffline = () => {
     if (!trimmedName) {
       setError('Escribe tu nombre para continuar.');
       return;
     }
+    setError(null);
     storeName(trimmedName);
-    onStartOffline(mode, trimmedName);
+    onStartOffline({ game, playerName: trimmedName, playerCount: offlineCount });
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-10 sm:px-6 sm:py-14">
-      <header className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-800 text-amber-300 shadow-md">
-          <Spade className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">Mesa de cartas</h1>
-          <p className="text-sm text-stone-500">Crea una sala, comparte el código y juega con tus amigos.</p>
-        </div>
-      </header>
+    <div className="wood-stage min-h-dvh">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-7 px-4 py-8 pb-[calc(env(safe-area-inset-bottom)+2rem)] pt-[calc(env(safe-area-inset-top)+2rem)] sm:px-6 sm:py-12">
+        <header className="flex items-center gap-4">
+          <div className="wood-block grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-amber-300">
+            <Spade className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-amber-50 sm:text-3xl">Mesa de cartas</h1>
+            <p className="text-sm text-amber-100/75">Juega con tus amigos en línea o contra bots, sin conexión.</p>
+          </div>
+        </header>
 
-      <section className="space-y-4">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-stone-500">Elige un juego</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          {GAME_ORDER.map((id) => {
-            const item = GAMES[id];
-            const active = id === game;
-            return (
+        <label className="block space-y-1.5">
+          <span className="flex items-center justify-between text-sm font-bold text-amber-100">
+            <span>Tu nombre</span>
+            {trimmedName && (
               <button
-                key={id}
                 type="button"
-                onClick={() => setGame(id)}
-                aria-pressed={active}
-                className={`group flex flex-col rounded-2xl border p-5 text-left transition duration-200 ${
-                  active
-                    ? 'border-emerald-700 bg-emerald-800 text-white shadow-lg'
-                    : 'border-stone-200 bg-white text-stone-800 hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md'
-                }`}
+                onClick={changePlayer}
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-300 hover:text-amber-200"
               >
-                <span className="text-lg font-semibold">{item.name}</span>
-                <span className={`mt-2 text-sm leading-relaxed ${active ? 'text-emerald-100' : 'text-stone-500'}`}>
-                  {item.tagline}
-                </span>
-                <span className={`mt-4 inline-flex items-center gap-1.5 text-xs font-medium ${active ? 'text-amber-200' : 'text-stone-400'}`}>
-                  <Users className="h-3.5 w-3.5" />
-                  {item.playerCountLabel}
-                </span>
+                <RefreshCw className="h-3 w-3" />
+                Cambiar jugador
               </button>
-            );
-          })}
-        </div>
+            )}
+          </span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, 24))}
+            placeholder="Cómo te verán los demás"
+            className={inputClass}
+          />
+        </label>
 
-        <div className="rounded-2xl border border-stone-200 bg-white">
-          {info.quickRules && (
-            <div className="space-y-3 border-b border-stone-100 px-5 py-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Lo esencial</p>
-              <ul className="space-y-2 text-sm leading-relaxed text-stone-700">
-                {info.quickRules.map((rule) => (
+        <section className="space-y-2" aria-labelledby="games-heading">
+          <h2 id="games-heading" className="text-sm font-bold text-amber-100">
+            Elige un juego
+          </h2>
+          <GameCarousel games={GAME_ORDER} selected={game} onSelect={setGame} />
+
+          <div className="wood-panel overflow-hidden">
+            {info.quickRules && (
+              <div className="space-y-3 border-b border-amber-200/15 px-5 py-5">
+                <p className="text-sm font-extrabold text-amber-300">Lo esencial de {info.name}</p>
+                <ul className="space-y-2 text-sm leading-relaxed text-amber-50/90">
+                  {info.quickRules.map((rule) => (
+                    <li key={rule} className="flex gap-2">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                      <span>{rule}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowRules((v) => !v)}
+              aria-expanded={showRules}
+              className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-bold text-amber-100 transition hover:text-amber-50"
+            >
+              Reglas de {info.name}
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showRules ? 'rotate-180' : ''}`} />
+            </button>
+            {showRules && (
+              <ul className="space-y-2 border-t border-amber-200/15 px-5 py-4 text-sm leading-relaxed text-amber-100/80">
+                {info.rules.map((rule) => (
                   <li key={rule} className="flex gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-lime-500" />
                     <span>{rule}</span>
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setShowRules((v) => !v)}
-            aria-expanded={showRules}
-            className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-medium text-stone-700 transition hover:text-stone-900"
-          >
-            Reglas de {info.name}
-            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showRules ? 'rotate-180' : ''}`} />
-          </button>
-          {showRules && (
-            <ul className="space-y-2 border-t border-stone-100 px-5 py-4 text-sm leading-relaxed text-stone-600">
-              {info.rules.map((rule) => (
-                <li key={rule} className="flex gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
-                  <span>{rule}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      <section className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-semibold text-stone-900">Crear sala de {info.name}</h2>
-            <p className="mt-1 text-sm text-stone-500">Recibirás un código para que tus amigos entren.</p>
+            )}
           </div>
-          <label className="block space-y-1.5">
-            <span className="flex items-center justify-between text-sm font-medium text-stone-700">
-              <span>Tu nombre</span>
-              {name.trim() && (
-                <button
-                  type="button"
-                  onClick={changePlayer}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Cambiar jugador
-                </button>
-              )}
-            </span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value.slice(0, 24))}
-              placeholder="Cómo te verán los demás"
-              className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-2.5 text-stone-900 placeholder:text-stone-400 transition focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={busy !== null}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Spade className="h-4 w-4" />
-            {busy === 'create' ? 'Creando sala...' : 'Crear sala'}
-          </button>
-          <button
-            type="button"
-            onClick={handleSolo}
-            disabled={busy !== null}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Bot className="h-4 w-4" />
-            {busy === 'solo'
-              ? 'Preparando mesa...'
-              : game === 'casino'
-                ? 'Jugar Casino en equipo con bots'
-                : 'Jugar contra bots'}
-          </button>
-          <p className="-mt-2 text-center text-xs leading-relaxed text-stone-500">
-            {game === 'casino'
-              ? 'Juegas en pareja con un bot contra otra pareja de bots. Sus nombres se asignan al azar.'
-              : `Completarás la mesa con ${info.soloPlayerCount - 1} bot${info.soloPlayerCount === 2 ? '' : 's'}.`}
-          </p>
-          {game === 'casino' && (
-            <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900">
-                <WifiOff className="h-3.5 w-3.5" /> Jugar sin conexión
+        </section>
+
+        <section className="grid gap-5 md:grid-cols-2">
+          <div className="wood-panel space-y-4 p-5 sm:p-6">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-extrabold text-amber-50">
+                <WifiOff className="h-4 w-4 text-amber-300" />
+                Jugar sin conexión
+              </h2>
+              <p className="mt-1 text-sm text-amber-100/75">
+                Contra bots en este dispositivo. No necesita sala, cuenta ni internet.
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => startOffline('team')}
-                  className="rounded-lg bg-emerald-700 px-2 py-2 text-[11px] font-semibold text-white transition hover:bg-emerald-800"
-                >
-                  Equipo · 4 jugadores
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startOffline('solo')}
-                  className="rounded-lg border border-emerald-300 bg-white px-2 py-2 text-[11px] font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                >
-                  Solitario · 2 jugadores
-                </button>
+            </div>
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-bold text-amber-100">
+                {game === 'casino' ? 'Tipo de partida' : 'Rivales'}
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {options.map((option) => {
+                  const active = option.count === offlineCount;
+                  return (
+                    <button
+                      key={option.count}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setOfflineCounts((current) => ({ ...current, [game]: option.count }))}
+                      className={`min-h-[40px] rounded-lg px-3 py-2 text-xs font-bold transition-transform active:scale-95 sm:text-sm ${
+                        active ? 'btn-gold' : 'btn-wood'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-[10px] leading-snug text-emerald-800/80">
-                No requiere sala, cuenta ni conexión. Los bots juegan localmente en este dispositivo.
+            </fieldset>
+            <button type="button" onClick={startOffline} className={primaryButton}>
+              <Bot className="h-4 w-4" />
+              Jugar {info.name} sin conexión
+            </button>
+          </div>
+
+          <div className="space-y-5">
+            <div className="wood-panel space-y-4 p-5 sm:p-6">
+              <div>
+                <h2 className="text-lg font-extrabold text-amber-50">Crear sala de {info.name}</h2>
+                <p className="mt-1 text-sm text-amber-100/75">Recibirás un código para que tus amigos entren.</p>
+              </div>
+              <button type="button" onClick={handleCreate} disabled={busy !== null} className={leafButton}>
+                <Spade className="h-4 w-4" />
+                {busy === 'create' ? 'Creando sala...' : 'Crear sala'}
+              </button>
+              <button type="button" onClick={handleSolo} disabled={busy !== null} className={quietButton}>
+                <Users className="h-4 w-4" />
+                {busy === 'solo' ? 'Preparando mesa...' : 'Sala en línea con bots'}
+              </button>
+              <p className="-mt-2 text-center text-xs leading-relaxed text-amber-100/65">
+                {game === 'casino'
+                  ? 'Juegas en pareja con un bot contra otra pareja de bots.'
+                  : `Completarás la mesa con ${info.soloPlayerCount - 1} bot${info.soloPlayerCount === 2 ? '' : 's'}.`}{' '}
+                Requiere conexión.
               </p>
             </div>
-          )}
-        </div>
 
-        <form onSubmit={handleJoin} className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          <div>
-            <h2 className="text-lg font-semibold text-stone-900">Unirse a una sala</h2>
-            <p className="mt-1 text-sm text-stone-500">Escribe el código que te compartieron.</p>
+            <form onSubmit={handleJoin} className="wood-panel space-y-4 p-5 sm:p-6">
+              <div>
+                <h2 className="text-lg font-extrabold text-amber-50">Unirse a una sala</h2>
+                <p className="mt-1 text-sm text-amber-100/75">Escribe el código que te compartieron.</p>
+              </div>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-bold text-amber-100">Código de la sala</span>
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 8))}
+                  placeholder="ABC12"
+                  className={`${inputClass} font-mono text-lg tracking-[0.3em]`}
+                />
+              </label>
+              <button type="submit" disabled={busy !== null} className={quietButton}>
+                <DoorOpen className="h-4 w-4" />
+                {busy === 'join' ? 'Entrando...' : 'Entrar a la sala'}
+              </button>
+            </form>
           </div>
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-stone-700">Código de la sala</span>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 8))}
-              placeholder="ABC12"
-              className="w-full rounded-xl border border-stone-300 bg-stone-50 px-4 py-2.5 font-mono text-lg tracking-[0.3em] text-stone-900 placeholder:text-stone-300 transition focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-100"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={busy !== null}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <DoorOpen className="h-4 w-4" />
-            {busy === 'join' ? 'Entrando...' : 'Entrar a la sala'}
-          </button>
-        </form>
-      </section>
+        </section>
 
-      {error && (
-        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p role="alert" className="rounded-xl bg-rose-700/80 px-4 py-3 text-sm font-medium text-rose-50 ring-1 ring-rose-300/60">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

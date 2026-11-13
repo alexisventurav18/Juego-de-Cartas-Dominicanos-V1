@@ -1,32 +1,32 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Build } from '@/games/casinoCapture';
-import PlayingCard from './PlayingCard';
+import CartaUI from './CartaUI';
 
 interface TableBuildProps {
   build: Build;
+  /** Grupo elegido por el jugador. */
   selected: boolean;
+  /** No es el turno del jugador o aún no eligió una carta. */
   disabled: boolean;
   onSelect: () => void;
 }
 
-const STEP_X = 8;
-const STEP_Y = 5;
-
+/**
+ * Grupo de la mesa (suma o par apilado) en formato compacto: las cartas se solapan en una sola fila
+ * y una insignia flotante indica el tipo y el valor ("Par 5", "Suma 14"). El solape es proporcional
+ * al alto de la carta (dvh), así se ve igual en móvil vertical, horizontal y escritorio.
+ */
 export default function TableBuild({ build, selected, disabled, onSelect }: TableBuildProps) {
-  const depth = build.cards.length - 1;
   const previousSize = useRef(build.cards.length);
   const previousKind = useRef(build.kind);
   const [celebrating, setCelebrating] = useState(false);
-  const [showFullLabel, setShowFullLabel] = useState(true);
 
   useEffect(() => {
     const becameLargePairs =
       build.kind === 'pairs' &&
       build.cards.length >= 6 &&
       (previousSize.current < 6 || previousKind.current !== 'pairs');
-    if (becameLargePairs) {
-      setCelebrating(true);
-    }
+    if (becameLargePairs) setCelebrating(true);
     previousSize.current = build.cards.length;
     previousKind.current = build.kind;
   }, [build.cards.length, build.kind]);
@@ -37,11 +37,7 @@ export default function TableBuild({ build, selected, disabled, onSelect }: Tabl
     return () => window.clearTimeout(timer);
   }, [celebrating]);
 
-  useEffect(() => {
-    setShowFullLabel(true);
-    const timer = window.setTimeout(() => setShowFullLabel(false), 1200);
-    return () => window.clearTimeout(timer);
-  }, [build.id, build.kind, build.value, build.cards.length]);
+  const etiqueta = `${build.kind === 'pairs' ? 'Par' : 'Suma'} ${build.value}`;
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (disabled) return;
@@ -57,49 +53,40 @@ export default function TableBuild({ build, selected, disabled, onSelect }: Tabl
       tabIndex={disabled ? -1 : 0}
       aria-pressed={selected}
       aria-disabled={disabled}
-      aria-label={`${build.kind === 'pairs' ? 'Pares de' : 'Sumatoria de'} ${build.value}`}
+      aria-label={etiqueta}
       onClick={() => {
         if (!disabled) onSelect();
       }}
       onKeyDown={onKeyDown}
-      className={`casino-build relative flex shrink-0 cursor-pointer flex-col items-center gap-0 rounded-2xl p-0 transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
-        selected ? 'bg-amber-300/25 ring-2 ring-amber-400' : disabled ? '' : 'hover:-translate-y-1'
-      } ${disabled ? 'cursor-not-allowed opacity-80' : ''} ${celebrating ? 'animate-pairs-combo' : ''}`}
+      className={`relative flex shrink-0 touch-manipulation items-center rounded-xl p-0.5 transition-transform duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 ${
+        selected ? '-translate-y-3 ring-2 ring-yellow-400 shadow-lg' : ''
+      } ${disabled ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'} ${celebrating ? 'animate-pairs-combo' : ''}`}
     >
       <span
-        className={`casino-build-label casino-build-label-full absolute -top-1 z-20 rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-bold text-stone-900 shadow-sm sm:text-xs ${
-          showFullLabel ? 'casino-build-label-visible animate-combo-label' : 'casino-build-label-hidden'
-        }`}
+        key={etiqueta}
+        aria-hidden
+        className="animate-combo-label absolute -top-2 -right-2 z-10 whitespace-nowrap rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-black shadow sm:text-xs"
       >
-        {build.kind === 'pairs' ? 'Pares de' : 'Sumatoria de'} {build.value}
+        {etiqueta}
       </span>
-      <span
-        className={`casino-build-label casino-build-label-compact absolute -top-1 z-20 grid h-5 w-5 place-items-center rounded-full bg-amber-300 text-[11px] font-black text-stone-900 shadow-sm ${
-          showFullLabel ? 'casino-build-label-hidden' : 'casino-build-label-visible'
-        }`}
-        aria-hidden={showFullLabel}
-      >
-        {build.kind === 'pairs' ? '≋' : 'Σ'}
-      </span>
+      {build.cards.map((card, i) => (
+        <div
+          key={card.id}
+          className={
+            i === 0
+              ? ''
+              : '-ml-[calc(var(--mesa-h,12dvh)*0.285)] sm:-ml-[calc(var(--mesa-h-sm,15dvh)*0.293)]'
+          }
+          style={{ zIndex: i + 1 }}
+        >
+          <CartaUI card={card} size="mesa" />
+        </div>
+      ))}
       {celebrating && (
-        <span className="absolute -top-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
+        <span className="pointer-events-none absolute -top-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-stone-900 shadow-md">
           ¡Pares!
         </span>
       )}
-      <div className="grid pt-2" style={{ marginRight: depth * STEP_X, marginBottom: depth * STEP_Y }}>
-        {build.cards.map((card, i) => (
-          <div
-            key={card.id}
-            style={{
-              gridArea: '1 / 1',
-              transform: `translate(${i * STEP_X}px, ${i * STEP_Y}px)`,
-              zIndex: i + 1,
-            }}
-          >
-            <PlayingCard card={card} size="table" />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

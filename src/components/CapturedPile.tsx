@@ -51,11 +51,11 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-medium uppercase tracking-widest text-stone-500">
+      <p className="text-xs font-bold text-amber-200">
         {title} · {cardCount} {cardCount === 1 ? 'carta' : 'cartas'}
       </p>
       {cardCount === 0 ? (
-        <p className="text-sm text-stone-400">Todavía no hay cartas capturadas.</p>
+        <p className="text-sm text-amber-100/50">Todavía no hay cartas capturadas.</p>
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-4">
@@ -70,7 +70,7 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
                 }`}
               >
                 <FaceDownStack count={hiddenCount} size="sm" />
-                <p className="text-xs text-stone-500">{hiddenCount} boca abajo</p>
+                <p className="text-xs text-amber-100/60">{hiddenCount} boca abajo</p>
               </div>
             )}
             {viraos.map((group, i) => {
@@ -96,7 +96,7 @@ export default function CapturedPile({ title, groups }: CapturedPileProps) {
           {pairs.length > 0 && (
             <ul className="space-y-1">
               {pairs.map((pair, i) => (
-                <li key={i} className="text-xs text-stone-600">
+                <li key={i} className="text-xs text-amber-100/80">
                   Pares de {rankName(pair.rank)} · {pair.size} cartas
                 </li>
               ))}

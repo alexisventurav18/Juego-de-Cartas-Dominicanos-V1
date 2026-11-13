@@ -14,7 +14,7 @@ const LAYER_OFFSET = 3;
 export default function FaceDownStack({ count, size, shakeFrame, displayCount = count, pulseKey }: FaceDownStackProps) {
   if (count === 0) {
     return (
-      <div className={`relative border-2 border-dashed border-emerald-300/50 ${SIZE_CLASS[size]}`}>
+      <div className={`relative border-2 border-dashed border-amber-200/40 ${SIZE_CLASS[size]}`}>
         <span className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-xs font-bold tabular-nums text-white drop-shadow sm:text-sm">
           {displayCount}
         </span>

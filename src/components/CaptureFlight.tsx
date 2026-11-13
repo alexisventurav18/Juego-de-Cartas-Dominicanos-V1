@@ -15,7 +15,7 @@ export default function CaptureFlight({ playerName, card, capturedCount, virao }
   return (
     <div className="pointer-events-none absolute inset-x-2 bottom-4 z-20 flex justify-center">
       <div
-        className="animate-capture-flight flex items-end gap-1.5 rounded-2xl border border-white/30 bg-stone-950/75 px-3 py-2 text-white shadow-xl backdrop-blur-sm"
+        className="animate-capture-flight wood-panel flex items-end gap-1.5 !rounded-2xl px-3 py-2 shadow-xl"
         role="status"
         aria-live="polite"
       >
@@ -32,7 +32,7 @@ export default function CaptureFlight({ playerName, card, capturedCount, virao }
             ))}
           </div>
         )}
-        <span className="pb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-200">
+        <span className="pb-1 text-[10px] font-extrabold text-amber-300">
           {virao ? 'Virao' : `${capturedCount} carta${capturedCount === 1 ? '' : 's'}`}
         </span>
       </div>

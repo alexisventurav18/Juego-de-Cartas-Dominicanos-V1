@@ -6,8 +6,14 @@ const DEAL_STEP_MS = 220;
 const CARDS_PER_HAND = 4;
 const CARDS_ON_TABLE = 4;
 
-export function useDealIntro(roundKey: number, seats: number) {
-  const dealSteps = seats * CARDS_PER_HAND + CARDS_ON_TABLE;
+/** Animación de barajar y repartir. Por defecto es la del Casino; el 3 y 2 reparte 5 y pone 1 en el Pozo. */
+export function useDealIntro(
+  roundKey: number,
+  seats: number,
+  cardsPerHand = CARDS_PER_HAND,
+  cardsOnTable = CARDS_ON_TABLE,
+) {
+  const dealSteps = seats * cardsPerHand + cardsOnTable;
   const totalTicks = SHUFFLE_TICKS + dealSteps;
   const [tick, setTick] = useState(0);
 
@@ -25,7 +31,7 @@ export function useDealIntro(roundKey: number, seats: number) {
   const shuffling = tick < SHUFFLE_TICKS;
   const dealing = tick <= totalTicks;
   const revealed = Math.max(0, tick - SHUFFLE_TICKS);
-  const handSteps = seats * CARDS_PER_HAND;
+  const handSteps = seats * cardsPerHand;
 
   let dealingTo: number | 'table' | null = null;
   if (dealing && !shuffling) {

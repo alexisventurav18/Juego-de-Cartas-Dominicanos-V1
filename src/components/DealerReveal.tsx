@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Player } from '@/games/shared';
+import { PANEL_BUTTON } from './wood/styles';
 
 interface DealerRevealProps {
   players: Player[];
@@ -29,11 +30,11 @@ export default function DealerReveal({ players, dealer, onDone }: DealerRevealPr
   }, [dealer, players.length]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md space-y-6 rounded-3xl bg-white p-6 text-center shadow-xl sm:p-8">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-widest text-stone-500">Sorteo del repartidor</p>
-          <h2 className="text-2xl font-semibold text-stone-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+      <div className="wood-panel w-full max-w-md space-y-5 p-5 text-center sm:p-8">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-amber-200/80">Sorteo del repartidor</p>
+          <h2 className="text-2xl font-extrabold text-amber-50">
             {landed ? `${players[dealer].name} reparte` : 'Eligiendo quién reparte...'}
           </h2>
         </div>
@@ -44,12 +45,12 @@ export default function DealerReveal({ players, dealer, onDone }: DealerRevealPr
             return (
               <li
                 key={player.id}
-                className={`rounded-2xl border px-4 py-3 text-sm font-medium transition duration-150 ${
+                className={`rounded-xl px-4 py-3 text-sm font-bold transition duration-150 ${
                   chosen
-                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-md'
+                    ? 'btn-gold shadow-md'
                     : active
-                      ? 'border-amber-400 bg-amber-100 text-stone-900'
-                      : 'border-stone-200 bg-stone-50 text-stone-600'
+                      ? 'bg-amber-400/30 text-amber-50 ring-2 ring-amber-300'
+                      : 'bg-black/30 text-amber-100/70 ring-1 ring-amber-200/20'
                 }`}
               >
                 {player.name}
@@ -58,11 +59,7 @@ export default function DealerReveal({ players, dealer, onDone }: DealerRevealPr
           })}
         </ul>
         {landed && (
-          <button
-            type="button"
-            onClick={onDone}
-            className="w-full rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800"
-          >
+          <button type="button" onClick={onDone} className={`${PANEL_BUTTON} w-full`}>
             Continuar
           </button>
         )}

@@ -29,14 +29,14 @@ export default function CoinToss({ onDone }: CoinTossProps) {
   const turns = result === 'cruz' ? 1980 : 1800;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm space-y-6 rounded-3xl bg-white p-6 text-center shadow-xl sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+      <div className="wood-panel w-full max-w-sm space-y-6 p-6 text-center sm:p-8">
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-widest text-stone-500">Volado inicial</p>
-          <h2 className="text-2xl font-semibold text-stone-900">
+          <p className="text-sm font-semibold text-amber-200/80">Volado inicial</p>
+          <h2 className="text-2xl font-extrabold text-amber-50">
             {result === null ? 'Cara o cruz' : settled ? (humanWon ? 'Ganaste el volado' : 'Perdiste el volado') : 'Lanzando...'}
           </h2>
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-amber-100/80">
             {result === null
               ? 'Elige un lado. Si pierdes el volado, repartes tú esta ronda.'
               : settled
@@ -68,7 +68,7 @@ export default function CoinToss({ onDone }: CoinTossProps) {
                 key={side}
                 type="button"
                 onClick={() => flip(side)}
-                className="rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800 transition hover:border-emerald-600 hover:bg-emerald-50"
+                className="btn-wood min-h-[44px] rounded-lg px-4 py-3 font-bold transition-transform active:scale-95"
               >
                 {SIDE_LABEL[side]}
               </button>
@@ -79,7 +79,7 @@ export default function CoinToss({ onDone }: CoinTossProps) {
             <button
               type="button"
               onClick={() => onDone(humanWon)}
-              className="w-full rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-800"
+              className="btn-gold min-h-[44px] w-full rounded-lg px-5 py-2.5 text-sm font-extrabold transition-transform active:scale-95"
             >
               Empezar partida
             </button>

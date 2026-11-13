@@ -1,10 +1,6 @@
-import {
-  type Card,
-  isAmericanSuit,
-  isRedSuit,
-  rankLabel,
-  suitSymbol,
-} from '@/games/cards';
+import { type Card } from '@/games/cards';
+import { CARD_BACK_URL } from './cagao/CardAssets';
+import CagaoCard from './cagao/PlayingCard';
 
 export type CardSize = 'sm' | 'hand' | 'table' | 'deck' | 'md' | 'lg' | 'xl';
 
@@ -17,45 +13,24 @@ interface PlayingCardProps {
   onClick?: () => void;
 }
 
-export const SIZE_CLASS: Record<CardSize, string> = {
-  sm: 'h-16 w-12 rounded-md sm:h-20 sm:w-14',
-  hand: 'h-24 w-16 rounded-lg sm:h-36 sm:w-24',
-  table: 'h-24 w-16 rounded-lg sm:h-52 sm:w-36',
-  deck: 'h-16 w-12 rounded-lg sm:h-52 sm:w-36',
-  md: 'h-32 w-24 rounded-xl sm:h-40 sm:w-28',
-  lg: 'h-32 w-24 rounded-xl sm:h-52 sm:w-36',
-  xl: 'h-36 w-24 rounded-xl sm:h-60 sm:w-40',
+/** Alto de cada tamaño como variable CSS (`--pc-h`): la carta de El Cagao escala todo a partir de ahí. */
+const HEIGHT_VAR: Record<CardSize, string> = {
+  sm: '[--pc-h:4rem] sm:[--pc-h:5rem]',
+  hand: '[--pc-h:6rem] sm:[--pc-h:9rem]',
+  table: '[--pc-h:min(11dvh,8rem)] sm:[--pc-h:min(14dvh,8rem)]',
+  deck: '[--pc-h:4rem] sm:[--pc-h:13rem]',
+  md: '[--pc-h:8rem] sm:[--pc-h:10rem]',
+  lg: '[--pc-h:8rem] sm:[--pc-h:13rem]',
+  xl: '[--pc-h:9rem] sm:[--pc-h:15rem]',
 };
 
-const RANK_CLASS: Record<CardSize, string> = {
-  sm: 'text-sm',
-  hand: 'text-sm sm:text-base',
-  table: 'text-sm sm:text-base',
-  deck: 'text-xs sm:text-lg',
-  md: 'text-base',
-  lg: 'text-lg',
-  xl: 'text-lg sm:text-xl',
-};
-
-const SUIT_CLASS: Record<CardSize, string> = {
-  sm: 'text-xl leading-none',
-  hand: 'text-3xl leading-none sm:text-4xl',
-  table: 'text-4xl leading-none sm:text-5xl',
-  deck: 'text-3xl leading-none sm:text-5xl',
-  md: 'text-3xl leading-none',
-  lg: 'text-5xl leading-none',
-  xl: 'text-5xl leading-none sm:text-6xl',
-};
-
-const JOKER_CLASS: Record<CardSize, string> = {
-  sm: 'text-[9px]',
-  hand: 'text-[10px] sm:text-xs',
-  table: 'text-xs sm:text-sm',
-  deck: 'text-xs sm:text-sm',
-  md: 'text-xs',
-  lg: 'text-sm',
-  xl: 'text-base',
-};
+/** Tamaño de caja de cada carta (alto y proporción), para reservar espacio, apilar o dibujar huecos. */
+export const SIZE_CLASS: Record<CardSize, string> = Object.fromEntries(
+  (Object.keys(HEIGHT_VAR) as CardSize[]).map((size) => [
+    size,
+    `${HEIGHT_VAR[size]} h-[var(--pc-h)] aspect-[2.5/3.5] rounded-md`,
+  ]),
+) as Record<CardSize, string>;
 
 export default function PlayingCard({
   card,
@@ -65,43 +40,12 @@ export default function PlayingCard({
   disabled = false,
   onClick,
 }: PlayingCardProps) {
-  const isJoker = card.suit === 'comodin';
-  const red = isAmericanSuit(card.suit) && isRedSuit(card.suit);
-
-  const face = (
-    <div
-      className={`casino-card-face relative flex flex-col justify-between border bg-white p-1 text-left shadow-sm sm:p-1.5 ${SIZE_CLASS[size]} ${
-        isJoker
-          ? 'border-amber-300 bg-gradient-to-br from-amber-100 to-white'
-          : 'border-stone-200'
-      } ${red ? 'text-rose-600' : 'text-stone-800'}`}
-    >
-      <span className={`font-semibold leading-none ${RANK_CLASS[size]}`}>
-        {isJoker ? 'J' : rankLabel(card)}
-      </span>
-      <div className="flex flex-1 items-center justify-center">
-        {isJoker ? (
-          <span className={`font-bold tracking-widest text-amber-600 ${JOKER_CLASS[size]}`}>JOKER</span>
-        ) : (
-          isAmericanSuit(card.suit) && <span className={SUIT_CLASS[size]}>{suitSymbol(card.suit)}</span>
-        )}
-      </div>
-      {!isJoker && (
-        <span className={`self-end rotate-180 font-semibold leading-none ${RANK_CLASS[size]}`}>
-          {rankLabel(card)}
-        </span>
-      )}
-    </div>
-  );
-
-  const stateClass = selected
-    ? '-translate-y-3 ring-2 ring-amber-400 shadow-lg'
-    : highlighted
-      ? 'ring-2 ring-emerald-400 hover:-translate-y-1'
-      : '';
+  const face = <CagaoCard card={card} heightVar="--pc-h" plain />;
+  const radius = 'rounded-[calc(var(--pc-h)*0.07)]';
+  const stateClass = selected ? 'card-picked' : highlighted ? 'card-playable sm:hover:-translate-y-1' : '';
 
   if (!onClick) {
-    return <div className={`shrink-0 transition ${stateClass}`}>{face}</div>;
+    return <div className={`${HEIGHT_VAR[size]} ${radius} shrink-0 transition ${stateClass}`}>{face}</div>;
   }
 
   return (
@@ -109,8 +53,8 @@ export default function PlayingCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`min-h-11 shrink-0 touch-manipulation transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-60 ${
-        disabled ? '' : 'hover:-translate-y-1'
+      className={`${HEIGHT_VAR[size]} ${radius} min-h-11 shrink-0 touch-manipulation transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-60 ${
+        disabled ? '' : 'active:scale-95 sm:hover:-translate-y-1'
       } ${stateClass}`}
     >
       {face}
@@ -121,11 +65,8 @@ export default function PlayingCard({
 export function CardBack({ size = 'sm' }: { size?: CardSize }) {
   return (
     <div
-      className={`shrink-0 border-2 border-emerald-200/60 bg-emerald-700 shadow-sm ${SIZE_CLASS[size]}`}
-      style={{
-        backgroundImage:
-          'repeating-linear-gradient(45deg, rgba(255,255,255,0.12) 0 4px, transparent 4px 10px)',
-      }}
+      className={`${SIZE_CLASS[size]} shrink-0 bg-cover bg-center shadow-[0_2px_5px_rgba(0,0,0,0.45)] ring-1 ring-black/40`}
+      style={{ backgroundImage: CARD_BACK_URL }}
     />
   );
 }
