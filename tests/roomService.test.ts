@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { chooseCasinoMove } from '../src/games/casinoBot';
-import { isPlayable } from '../src/games/cinquillo';
+import { chooseCagaoMove, hasPair } from '../src/games/cagao';
+import { chooseTresYDosMove } from '../src/games/tresYDos';
 import {
   handleRequest,
   makeRoomCode,
@@ -69,10 +70,9 @@ async function fail(store: RoomStore, req: unknown): Promise<string> {
 const C = { playerId: 'jugador-carla-0003', key: 'clave-secreta-de-carla-01234567' };
 
 /** Sala con Ana y Beto (y Carla si el juego necesita tres). */
-async function twoPlayerRoom(game: 'casino' | 'cinquillo' | 'burako', store: MemoryStore) {
+async function twoPlayerRoom(game: 'casino' | 'tresydos' | 'cagao', store: MemoryStore) {
   const created = await ok(store, { action: 'create', game, name: 'Ana', ...A });
   await ok(store, { action: 'join', code: created.code, name: 'Beto', ...B });
-  if (game === 'cinquillo') await ok(store, { action: 'join', code: created.code, name: 'Carla', ...C });
   const started = await ok(store, { action: 'start', roomId: created.id, ...A });
   return { id: created.id, code: created.code, started };
 }
@@ -82,7 +82,7 @@ function cardIds(state: GameState, seat: number): string[] {
 }
 
 describe('servidor de salas: privacidad', () => {
-  for (const game of ['casino', 'cinquillo', 'burako'] as const) {
+  for (const game of ['casino', 'tresydos', 'cagao'] as const) {
     it(`${game}: cada jugador ve su mano y solo la cantidad de cartas de los demás`, async () => {
       const store = new MemoryStore();
       const { id } = await twoPlayerRoom(game, store);
@@ -99,16 +99,11 @@ describe('servidor de salas: privacidad', () => {
       const jsonB = JSON.stringify(viewB);
       for (const real of cardIds(full, 1)) assert.ok(!jsonA.includes(`"${real}"`), `A ve la carta ${real} de B`);
       for (const real of cardIds(full, 0)) assert.ok(!jsonB.includes(`"${real}"`), `B ve la carta ${real} de A`);
-      if (full.game !== 'cinquillo') {
-        // El orden del mazo es secreto: ninguna carta del mazo aparece en la vista (salvo que esté en tu mano).
+      // El orden del mazo es secreto: ninguna carta del mazo aparece en la vista (salvo que esté en tu mano).
+      if ('deck' in full) {
         const mine = new Set(cardIds(full, 0));
         for (const c of full.deck) {
           if (!mine.has(c.id)) assert.ok(!jsonA.includes(`"${c.id}"`), `A ve la carta ${c.id} del mazo`);
-        }
-      }
-      if (full.game === 'burako') {
-        for (const muerto of full.muertos) {
-          for (const c of muerto ?? []) assert.ok(!jsonA.includes(`"${c.id}"`), `A ve una carta del muerto`);
         }
       }
     });
@@ -246,37 +241,77 @@ describe('servidor de salas: solo contra bots', () => {
     assert.equal(view.state?.phase, 'gameOver');
   });
 
-  it('una partida completa de Cinquillo con bots', async () => {
+  it('una partida completa de Tres y Dos con bots, sin ver las manos rivales mientras se juega', async () => {
     const store = new MemoryStore();
-    const created = await ok(store, { action: 'create', game: 'cinquillo', solo: true, name: 'Ana', ...A });
+    const created = await ok(store, { action: 'create', game: 'tresydos', solo: true, name: 'Ana', ...A });
+    assert.equal(created.players.length, 3);
     let view = await ok(store, { action: 'start', roomId: created.id, ...A });
     let guard = 0;
-    while (view.state && view.state.phase !== 'finished') {
-      assert.ok(++guard < 3000, 'partida sin fin');
+    while (view.state && view.state.phase !== 'gameOver') {
+      assert.ok(++guard < 6000, 'partida sin fin');
       const full = store.fullState(created.id);
-      if (full.game !== 'cinquillo') throw new Error('juego inesperado');
-      if (full.turn === 0) {
-        const card = full.hands[0].find((c) => isPlayable(c, full.board));
-        const move = card ? { type: 'play', cardId: card.id } : { type: 'pass' };
-        view = await ok(store, { action: 'move', roomId: created.id, move, ...A });
+      if (full.game !== 'tresydos') throw new Error('juego inesperado');
+      const json = JSON.stringify(view);
+      if (full.phase === 'playing') {
+        // La carta que un bot tomó del Pozo la vio toda la mesa, así que es pública; las demás son secretas.
+        const publicCard = full.drawnFrom === 'discard' ? full.drawnCardId : null;
+        for (const seat of [1, 2]) {
+          for (const real of full.hands[seat].map((c) => c.id)) {
+            if (real !== publicCard) assert.ok(!json.includes(`"${real}"`), 'se filtró la mano del bot');
+          }
+        }
+        for (const c of full.deck) assert.ok(!json.includes(`"${c.id}"`), 'se filtró una carta del Monte');
+      }
+      const humanDeals = full.phase === 'roundEnd' && (full.dealer + 1) % created.players.length === 0;
+      if (full.phase === 'playing' && full.turn === 0) {
+        view = await ok(store, { action: 'move', roomId: created.id, move: chooseTresYDosMove(full), ...A });
+      } else if (humanDeals) {
+        view = await ok(store, { action: 'move', roomId: created.id, move: { type: 'nextRound' }, ...A });
       } else {
         view = await ok(store, { action: 'tick', roomId: created.id, expectedVersion: view.version, ...A });
       }
     }
-    assert.equal(view.state?.phase, 'finished');
+    assert.equal(view.state?.phase, 'gameOver');
+  });
+
+  it('una partida completa de El Cagao con bots, sin ver las manos rivales', async () => {
+    const store = new MemoryStore();
+    const created = await ok(store, { action: 'create', game: 'cagao', solo: true, name: 'Ana', ...A });
+    assert.equal(created.players.length, 4);
+    let view = await ok(store, { action: 'start', roomId: created.id, ...A });
+    let guard = 0;
+    while (view.state && view.state.phase !== 'gameOver') {
+      assert.ok(++guard < 1000, 'partida sin fin');
+      const full = store.fullState(created.id);
+      if (full.game !== 'cagao') throw new Error('juego inesperado');
+      const json = JSON.stringify(view);
+      // Solo es público El Cagao (A♠) cuando alguien lo roba; el resto de cartas ajenas es secreto.
+      const publicId = full.lastEvent?.cagao ? full.lastEvent.drawnCardId : null;
+      for (const seat of [1, 2, 3]) {
+        for (const real of full.hands[seat].map((c) => c.id)) {
+          if (real !== publicId) assert.ok(!json.includes(`"${real}"`), 'se filtró la mano de un bot');
+        }
+      }
+      if (full.phase === 'pairing' && hasPair(full.hands[0])) {
+        view = await ok(store, { action: 'move', roomId: created.id, move: { type: 'pairAll' }, ...A });
+      } else if (full.phase === 'playing' && full.turn === 0) {
+        view = await ok(store, { action: 'move', roomId: created.id, move: chooseCagaoMove(full), ...A });
+      } else {
+        view = await ok(store, { action: 'tick', roomId: created.id, expectedVersion: view.version, ...A });
+      }
+    }
+    assert.equal(view.state?.phase, 'gameOver');
   });
 
   it('tick con versión vieja no mueve dos veces', async () => {
     const store = new MemoryStore();
-    const created = await ok(store, { action: 'create', game: 'cinquillo', solo: true, name: 'Ana', ...A });
+    const created = await ok(store, { action: 'create', game: 'tresydos', solo: true, name: 'Ana', ...A });
     let view = await ok(store, { action: 'start', roomId: created.id, ...A });
     // Avanza hasta que le toque a un bot.
     while (view.state && view.state.players[view.state.turn].id === A.playerId) {
       const full = store.fullState(created.id);
-      if (full.game !== 'cinquillo') throw new Error('juego inesperado');
-      const card = full.hands[0].find((c) => isPlayable(c, full.board));
-      const move = card ? { type: 'play', cardId: card.id } : { type: 'pass' };
-      view = await ok(store, { action: 'move', roomId: created.id, move, ...A });
+      if (full.game !== 'tresydos') throw new Error('juego inesperado');
+      view = await ok(store, { action: 'move', roomId: created.id, move: chooseTresYDosMove(full), ...A });
     }
     const stale = view.version - 1;
     const stillSame = await ok(store, { action: 'tick', roomId: created.id, expectedVersion: stale, ...A });
